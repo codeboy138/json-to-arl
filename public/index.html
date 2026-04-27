@@ -184,7 +184,7 @@
 
 <div class="worker-url-wrap">
   <label>WORKER URL</label>
-  <input type="text" id="workerUrl" placeholder="https://json-to-arl.your-id.workers.dev/convert" />
+  <input type="text" id="workerUrl" placeholder="https://json-to-arl.cwicwi2016.workers.dev/convert" />
 </div>
 
 <div id="dropzone">
@@ -213,6 +213,7 @@
 
   // 저장된 worker URL 불러오기
   workerUrlInput.value = localStorage.getItem('workerUrl') || '';
+  workerUrlInput.dispatchEvent(new Event('change'));
   workerUrlInput.addEventListener('change', () => {
     localStorage.setItem('workerUrl', workerUrlInput.value.trim());
   });
@@ -257,7 +258,7 @@
   }
 
   convertBtn.addEventListener('click', async () => {
-    const workerUrl = workerUrlInput.value.trim();
+    const workerUrl = document.getElementById('workerUrl').value.trim();
     if (!workerUrl) { alert('Worker URL을 입력하세요'); return; }
 
     convertBtn.disabled = true;
