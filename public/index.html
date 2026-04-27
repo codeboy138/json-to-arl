@@ -489,6 +489,20 @@
   .btn-paste-add:hover { background: #0066bb; }
   .btn-paste-add:disabled { background: var(--border); color: var(--text3); cursor: not-allowed; }
 
+  .btn-paste-clipboard {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875rem;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    border: 1px solid var(--border2);
+    background: var(--surface2);
+    color: var(--text2);
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .btn-paste-clipboard:hover { background: var(--accent); color: #f5f6f7; border-color: var(--accent); }
+
   .btn-paste-clear {
     font-family: 'IBM Plex Mono', monospace;
     font-size: 0.875rem;
@@ -542,6 +556,21 @@
     white-space: nowrap;
   }
   .btn-sel-zip:hover { background: var(--accent2); color: #f5f6f7; }
+
+  .btn-sel-flatzip {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875rem;
+    font-weight: 500;
+    padding: 5px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    border: 1px solid var(--folder);
+    background: transparent;
+    color: var(--folder);
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .btn-sel-flatzip:hover { background: var(--folder); color: #fff; }
 
   .btn-sel-folder {
     font-family: 'IBM Plex Mono', monospace;
@@ -686,6 +715,7 @@
         <div class="paste-actions">
           <button class="btn-paste-add" id="btnPasteAdd" disabled>＋ Add as File</button>
           <button class="btn-paste-clear" id="btnPasteClear">Clear</button>
+          <button class="btn-paste-clipboard" id="btnPasteClipboard" title="Paste from clipboard">📋 Paste</button>
           <span class="paste-status" id="pasteStatus"></span>
         </div>
       </div>
@@ -714,6 +744,7 @@
     <div class="right-action-bar" id="rightActionBar">
       <span class="sel-count" id="selCount">0 selected</span>
       <button class="btn-sel-zip" id="btnSelZip">📦 ZIP Selected</button>
+      <button class="btn-sel-flatzip" id="btnSelFlatZip">📁 Download as Folder</button>
       <button class="btn-sel-folder" id="btnSelFolder">🗂 Save Selected to Folder</button>
       <button class="btn-sel-clear" id="btnSelClear">✕ Deselect All</button>
     </div>
@@ -809,6 +840,35 @@ btnSelZip.addEventListener('click', async () => {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = 'selected.zip';
+  a.click();
+});
+
+// ── Download selected as flat folder (all files in one folder, no subfolders) ──
+document.getElementById('btnSelFlatZip').addEventListener('click', async () => {
+  if (!selectedIds.size) return;
+  const zip = new JSZip();
+  const folder = zip.folder('converted');
+  const nameCount = {};
+  for (const id of selectedIds) {
+    const r = results.get(id);
+    const entry = fileMap.get(id);
+    if (!r || r.error || !entry) continue;
+    let arlName = entry.file.name.replace(/\.json$/, '.arl');
+    // Deduplicate filenames
+    if (nameCount[arlName] !== undefined) {
+      nameCount[arlName]++;
+      const ext = '.arl';
+      const base = arlName.slice(0, -ext.length);
+      arlName = `${base}(${nameCount[arlName]})${ext}`;
+    } else {
+      nameCount[arlName] = 0;
+    }
+    folder.file(arlName, JSON.stringify(r.data, null, 2));
+  }
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'converted.zip';
   a.click();
 });
 
@@ -1673,6 +1733,23 @@ btnPasteClear.addEventListener('click', () => {
   pasteStatus.textContent = '';
   pasteStatus.className = 'paste-status';
   btnPasteAdd.disabled = true;
+});
+
+// Clipboard paste button
+document.getElementById('btnPasteClipboard').addEventListener('click', async () => {
+  try {
+    const text = await navigator.clipboard.readText();
+    pasteTextarea.value = text;
+    validatePaste();
+    pasteTextarea.focus();
+  } catch (e) {
+    pasteStatus.textContent = '✘ Clipboard access denied';
+    pasteStatus.className = 'paste-status err';
+    setTimeout(() => {
+      pasteStatus.textContent = '';
+      pasteStatus.className = 'paste-status';
+    }, 2500);
+  }
 });
 
 // ─────────────────────────────────────────
