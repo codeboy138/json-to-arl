@@ -1,21 +1,30 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>JSON → ARL Converter</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
 
   :root {
-    --bg: #0a0a0a;
-    --surface: #111111;
-    --border: #222222;
-    --accent: #e8ff47;
-    --accent2: #47ffce;
-    --text: #f0f0f0;
-    --muted: #555;
+    --bg: #080c10;
+    --surface: #0d1117;
+    --surface2: #131920;
+    --border: #1e2832;
+    --border2: #263040;
+    --accent: #00e5ff;
+    --accent2: #b2ff59;
+    --accent3: #ff6b35;
+    --text: #cdd9e5;
+    --text2: #8b949e;
+    --text3: #4d5966;
+    --folder: #f0c040;
+    --file: #79c0ff;
+    --done: #56d364;
+    --error: #f85149;
+    --processing: #d2a8ff;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -23,246 +32,1123 @@
   body {
     background: var(--bg);
     color: var(--text);
-    font-family: 'DM Sans', sans-serif;
+    font-family: 'IBM Plex Sans', sans-serif;
     min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+    gap: 16px;
+  }
+
+  .header-left { display: flex; align-items: center; gap: 16px; }
+
+  .logo {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    color: var(--accent);
+    white-space: nowrap;
+  }
+  .logo span { color: var(--text2); }
+
+  .header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  .btn {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.72rem;
+    font-weight: 500;
+    padding: 7px 14px;
+    border-radius: 5px;
+    cursor: pointer;
+    border: none;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .btn-upload-files { background: var(--border2); color: var(--text); }
+  .btn-upload-folder { background: var(--border2); color: var(--folder); }
+  .btn-upload-files:hover { background: var(--border); }
+  .btn-upload-folder:hover { background: var(--border); }
+
+  .btn-convert {
+    background: var(--accent);
+    color: #080c10;
+    font-weight: 600;
+    display: none;
+  }
+  .btn-convert:hover { background: #33eaff; }
+  .btn-convert:disabled { background: var(--border); color: var(--text3); cursor: not-allowed; }
+
+  .btn-dl-zip { background: transparent; color: var(--accent2); border: 1px solid var(--accent2); display: none; }
+  .btn-dl-zip:hover { background: var(--accent2); color: #080c10; }
+
+  .btn-dl-folder { background: transparent; color: var(--accent3); border: 1px solid var(--accent3); display: none; }
+  .btn-dl-folder:hover { background: var(--accent3); color: #fff; }
+
+  .file-count {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--text3);
+    white-space: nowrap;
+  }
+
+  /* ── MAIN LAYOUT ── */
+  .workspace {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  /* ── PANELS ── */
+  .panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-width: 0;
+  }
+
+  .panel + .panel { border-left: 1px solid var(--border); }
+
+  .panel-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+
+  .panel-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .panel-badge {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.65rem;
+    padding: 2px 7px;
+    border-radius: 10px;
+    font-weight: 600;
+  }
+
+  .badge-before { background: #1c2a35; color: var(--accent); }
+  .badge-after  { background: #1c2e1a; color: var(--accent2); }
+
+  .panel-body {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 8px 0;
+    position: relative;
+  }
+
+  /* ── DROPZONE overlay ── */
+  .dropzone-overlay {
+    position: absolute;
+    inset: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 40px 20px;
+    gap: 12px;
+    pointer-events: none;
+    opacity: 1;
+    transition: opacity 0.2s;
+    z-index: 2;
   }
 
-  h1 {
-    font-family: 'Space Mono', monospace;
-    font-size: clamp(1.2rem, 3vw, 1.8rem);
-    letter-spacing: -0.02em;
-    margin-bottom: 8px;
-  }
+  .dropzone-overlay.hidden { opacity: 0; }
 
-  h1 span { color: var(--accent); }
-
-  .sub {
-    color: var(--muted);
-    font-size: 0.85rem;
-    margin-bottom: 40px;
-    font-family: 'Space Mono', monospace;
-  }
-
-  #dropzone {
-    width: 100%;
-    max-width: 560px;
-    border: 2px dashed var(--border);
-    border-radius: 12px;
-    padding: 60px 40px;
+  .drop-icon-big { font-size: 2.8rem; }
+  .drop-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--text3);
     text-align: center;
+    line-height: 1.8;
+  }
+  .drop-label strong { color: var(--text2); }
+
+  .workspace.drag-over .panel-left { border: 2px dashed var(--accent); }
+  .workspace.drag-over .dropzone-overlay { opacity: 1; }
+
+  /* ── TREE ── */
+  .tree-root { padding: 0 8px; }
+
+  .tree-node { user-select: none; }
+
+  .tree-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+    padding: 2px 0;
+    border-radius: 4px;
     cursor: pointer;
-    transition: all 0.2s;
-    background: var(--surface);
     position: relative;
   }
+  .tree-row:hover { background: var(--surface2); }
 
-  #dropzone.drag { border-color: var(--accent); background: #111f00; }
-  #dropzone.drag .drop-icon { transform: scale(1.15); }
+  .tree-indent { flex-shrink: 0; }
 
-  .drop-icon {
-    font-size: 2.5rem;
-    margin-bottom: 16px;
-    transition: transform 0.2s;
-  }
-
-  .drop-text {
-    font-size: 0.95rem;
-    color: var(--muted);
-    line-height: 1.6;
-  }
-
-  .drop-text strong { color: var(--accent); }
-
-  #fileInput { display: none; }
-
-  #fileList {
-    width: 100%;
-    max-width: 560px;
-    margin-top: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .file-item {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 12px 16px;
+  .tree-toggle {
+    width: 18px;
+    flex-shrink: 0;
     display: flex;
     align-items: center;
-    gap: 12px;
+    justify-content: center;
+    color: var(--text3);
+    font-size: 0.6rem;
+    padding-top: 3px;
+    transition: transform 0.15s;
+  }
+
+  .tree-icon {
+    width: 18px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-size: 0.85rem;
-    font-family: 'Space Mono', monospace;
+    padding-top: 1px;
   }
 
-  .file-item .name { flex: 1; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .file-item .status { font-size: 0.75rem; color: var(--muted); white-space: nowrap; }
-  .file-item.done .status { color: var(--accent2); }
-  .file-item.error .status { color: #ff6b6b; }
-  .file-item.processing .status { color: var(--accent); }
+  .tree-name {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.76rem;
+    padding: 2px 4px;
+    color: var(--text);
+    line-height: 1.4;
+    word-break: break-all;
+  }
 
-  #convertBtn {
-    margin-top: 24px;
+  .tree-name.folder-name { color: var(--folder); }
+  .tree-name.file-name   { color: var(--file); }
+
+  .tree-status {
+    margin-left: auto;
+    padding: 0 8px 0 4px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.65rem;
+    white-space: nowrap;
+    padding-top: 3px;
+    flex-shrink: 0;
+  }
+  .status-waiting   { color: var(--text3); }
+  .status-processing{ color: var(--processing); }
+  .status-done      { color: var(--done); }
+  .status-error     { color: var(--error); }
+
+  .tree-children { display: none; }
+  .tree-children.open { display: block; }
+
+  /* ── URL IMAGE LIST ── */
+  .url-list {
+    display: none;
+    padding: 4px 0 4px 36px;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .url-list.open { display: flex; }
+
+  .url-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 6px;
+    background: #0a1018;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .url-item:hover { border-color: var(--border2); }
+  .url-item.expanded { border-color: var(--accent); }
+
+  .url-thumb {
+    width: 32px;
+    height: 32px;
+    object-fit: cover;
+    border-radius: 3px;
+    background: var(--border);
+    flex-shrink: 0;
+    border: 1px solid var(--border2);
+  }
+  .url-thumb.error-thumb {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    color: var(--error);
+    background: #1a0a0a;
+  }
+
+  .url-text {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--text2);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+  }
+
+  .url-preview-img {
+    display: none;
     width: 100%;
-    max-width: 560px;
-    padding: 16px;
+    max-height: 160px;
+    object-fit: contain;
+    border-radius: 4px;
+    margin-top: 4px;
+    border: 1px solid var(--border);
+    background: #060a0e;
+  }
+  .url-preview-img.shown { display: block; }
+
+  .url-expand-wrap { padding: 0 6px 6px 6px; display: none; }
+  .url-expand-wrap.open { display: block; }
+
+  /* ── RIGHT PANEL - converted tree ── */
+  .converted-file-name { color: var(--accent2) !important; }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #3a4858; }
+
+  /* ── DRAG HIGHLIGHT ── */
+  .drag-over-active {
+    outline: 2px dashed var(--accent) !important;
+    outline-offset: -4px;
+    background: #03151f !important;
+  }
+
+  /* ── RESIZER ── */
+  .resizer {
+    width: 4px;
+    background: var(--border);
+    cursor: col-resize;
+    flex-shrink: 0;
+    transition: background 0.15s;
+    z-index: 10;
+  }
+  .resizer:hover, .resizer.dragging { background: var(--accent); }
+
+  /* ── PROGRESS BAR ── */
+  .progress-bar-wrap {
+    height: 2px;
+    background: var(--border);
+    flex-shrink: 0;
+    display: none;
+  }
+  .progress-bar-wrap.visible { display: block; }
+  .progress-bar {
+    height: 100%;
     background: var(--accent);
-    color: #0a0a0a;
-    border: none;
-    border-radius: 8px;
-    font-family: 'Space Mono', monospace;
-    font-size: 0.95rem;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.15s;
-    display: none;
+    width: 0%;
+    transition: width 0.3s;
   }
 
-  #convertBtn:hover { background: #fff; transform: translateY(-1px); }
-  #convertBtn:active { transform: translateY(0); }
-  #convertBtn:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; transform: none; }
+  /* ── CONTEXT TAG ── */
+  .url-key {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.6rem;
+    color: var(--text3);
+    background: var(--surface2);
+    border-radius: 3px;
+    padding: 1px 5px;
+    flex-shrink: 0;
+  }
 
-  #downloadBtn {
-    margin-top: 12px;
-    width: 100%;
-    max-width: 560px;
-    padding: 16px;
+  .clear-btn {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.65rem;
     background: transparent;
-    color: var(--accent2);
-    border: 2px solid var(--accent2);
-    border-radius: 8px;
-    font-family: 'Space Mono', monospace;
-    font-size: 0.95rem;
-    font-weight: 700;
+    color: var(--text3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 4px 10px;
     cursor: pointer;
-    transition: all 0.15s;
-    display: none;
   }
+  .clear-btn:hover { color: var(--error); border-color: var(--error); }
 
-  #downloadBtn:hover { background: var(--accent2); color: #0a0a0a; }
+  input[type=file] { display: none; }
 </style>
 </head>
 <body>
 
-<h1>JSON <span>→</span> ARL</h1>
-<p class="sub">design2d converter // image url → base64</p>
+<!-- HIDDEN FILE INPUTS -->
+<input type="file" id="inputFiles" accept=".json" multiple>
+<input type="file" id="inputFolder" accept=".json" webkitdirectory multiple>
 
-<div id="dropzone">
-  <input type="file" id="fileInput" accept=".json" multiple>
-  <div class="drop-icon">📂</div>
-  <div class="drop-text">
-    <strong>클릭하거나 파일을 드래그</strong>하세요<br>
-    .json 파일 복수 선택 가능
+<!-- HEADER -->
+<div class="header">
+  <div class="header-left">
+    <div class="logo">JSON<span> → </span>ARL</div>
+    <div class="file-count" id="fileCount">No files</div>
+  </div>
+  <div class="header-actions">
+    <button class="btn btn-upload-files" onclick="document.getElementById('inputFiles').click()">📄 Select Files</button>
+    <button class="btn btn-upload-folder" onclick="document.getElementById('inputFolder').click()">📁 Select Folder</button>
+    <button class="btn btn-convert" id="convertBtn">⚡ Convert</button>
+    <button class="btn btn-dl-zip" id="dlZipBtn">📦 Download ZIP</button>
+    <button class="btn btn-dl-folder" id="dlFolderBtn">🗂 Save as Folder</button>
+    <button class="clear-btn" id="clearBtn" style="display:none" onclick="clearAll()">✕ Clear</button>
   </div>
 </div>
 
-<div id="fileList"></div>
-<button id="convertBtn">변환 시작</button>
-<button id="downloadBtn">📦 ZIP 다운로드</button>
+<!-- PROGRESS -->
+<div class="progress-bar-wrap" id="progressWrap">
+  <div class="progress-bar" id="progressBar"></div>
+</div>
+
+<!-- WORKSPACE -->
+<div class="workspace" id="workspace">
+
+  <!-- LEFT PANEL -->
+  <div class="panel panel-left" id="panelLeft">
+    <div class="panel-header">
+      <div class="panel-title">Before</div>
+      <div class="panel-badge badge-before">JSON</div>
+    </div>
+    <div class="panel-body" id="leftBody">
+      <div class="dropzone-overlay" id="dropOverlay">
+        <div class="drop-icon-big">📂</div>
+        <div class="drop-label">
+          <strong>Drag files here</strong> or<br>use the buttons above<br><span style="color:var(--text3);font-size:0.65rem">.json files &amp; folders supported</span>
+        </div>
+      </div>
+      <div class="tree-root" id="leftTree"></div>
+    </div>
+  </div>
+
+  <!-- RESIZER -->
+  <div class="resizer" id="resizer"></div>
+
+  <!-- RIGHT PANEL -->
+  <div class="panel panel-right" id="panelRight">
+    <div class="panel-header">
+      <div class="panel-title">After</div>
+      <div class="panel-badge badge-after">ARL</div>
+    </div>
+    <div class="panel-body" id="rightBody">
+      <div class="dropzone-overlay hidden" id="rightOverlay">
+        <div class="drop-icon-big" style="opacity:0.3">🗂</div>
+        <div class="drop-label" style="color:var(--text3)">Converted results will appear here</div>
+      </div>
+      <div class="tree-root" id="rightTree"></div>
+    </div>
+  </div>
+
+</div>
 
 <script>
-  const WORKER_URL = 'https://json-to-arl.cwicwi2016.workers.dev/convert';
+// ─────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────
+const WORKER_URL = 'https://json-to-arl.cwicwi2016.workers.dev/convert';
 
-  const dropzone = document.getElementById('dropzone');
-  const fileInput = document.getElementById('fileInput');
-  const fileList = document.getElementById('fileList');
-  const convertBtn = document.getElementById('convertBtn');
-  const downloadBtn = document.getElementById('downloadBtn');
+// fileMap: Map<id, { file, path (array), relativePath (string) }>
+let fileMap = new Map();
+let idCounter = 0;
+// results: Map<id, { data } | { error }>
+let results = new Map();
 
-  let files = [];
-  let results = {};
+// ─────────────────────────────────────────
+// ELEMENTS
+// ─────────────────────────────────────────
+const convertBtn   = document.getElementById('convertBtn');
+const dlZipBtn     = document.getElementById('dlZipBtn');
+const dlFolderBtn  = document.getElementById('dlFolderBtn');
+const clearBtnEl   = document.getElementById('clearBtn');
+const leftTree     = document.getElementById('leftTree');
+const rightTree    = document.getElementById('rightTree');
+const fileCountEl  = document.getElementById('fileCount');
+const dropOverlay  = document.getElementById('dropOverlay');
+const rightOverlay = document.getElementById('rightOverlay');
+const progressWrap = document.getElementById('progressWrap');
+const progressBar  = document.getElementById('progressBar');
 
-  dropzone.addEventListener('click', () => fileInput.click());
-  dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag'); });
-  dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag'));
-  dropzone.addEventListener('drop', e => {
-    e.preventDefault();
-    dropzone.classList.remove('drag');
-    addFiles([...e.dataTransfer.files]);
-  });
-  fileInput.addEventListener('change', e => addFiles([...e.target.files]));
+// ─────────────────────────────────────────
+// FILE INPUT EVENTS
+// ─────────────────────────────────────────
+document.getElementById('inputFiles').addEventListener('change', e => {
+  addFiles([...e.target.files], false);
+  e.target.value = '';
+});
+document.getElementById('inputFolder').addEventListener('change', e => {
+  addFiles([...e.target.files], true);
+  e.target.value = '';
+});
 
-  function addFiles(newFiles) {
-    newFiles = newFiles.filter(f => f.name.endsWith('.json'));
-    files = [...files, ...newFiles];
-    renderList();
-    convertBtn.style.display = files.length ? 'block' : 'none';
-    downloadBtn.style.display = 'none';
+// ─────────────────────────────────────────
+// DRAG & DROP on workspace
+// ─────────────────────────────────────────
+const workspace = document.getElementById('workspace');
+workspace.addEventListener('dragover', e => {
+  e.preventDefault();
+  workspace.classList.add('drag-over');
+  document.getElementById('panelLeft').classList.add('drag-over-active');
+});
+workspace.addEventListener('dragleave', e => {
+  if (!workspace.contains(e.relatedTarget)) {
+    workspace.classList.remove('drag-over');
+    document.getElementById('panelLeft').classList.remove('drag-over-active');
   }
+});
+workspace.addEventListener('drop', async e => {
+  e.preventDefault();
+  workspace.classList.remove('drag-over');
+  document.getElementById('panelLeft').classList.remove('drag-over-active');
 
-  function renderList() {
-    fileList.innerHTML = '';
-    files.forEach((f, i) => {
-      const div = document.createElement('div');
-      div.className = 'file-item' + (results[i] ? (results[i].error ? ' error' : ' done') : '');
-      div.id = `file-${i}`;
-      div.innerHTML = `
-        <span class="name">${f.name}</span>
-        <span class="status">${results[i] ? (results[i].error ? '❌ 오류' : '✅ 완료') : '대기중'}</span>
-      `;
-      fileList.appendChild(div);
-    });
-  }
+  const items = [...e.dataTransfer.items];
+  const collected = [];
 
-  function setStatus(i, status, cls) {
-    const item = document.getElementById(`file-${i}`);
-    if (!item) return;
-    item.className = `file-item ${cls}`;
-    item.querySelector('.status').textContent = status;
-  }
-
-  convertBtn.addEventListener('click', async () => {
-    convertBtn.disabled = true;
-    convertBtn.textContent = '변환 중...';
-    results = {};
-
-    for (let i = 0; i < files.length; i++) {
-      setStatus(i, '⏳ 처리중', 'processing');
-      try {
-        const text = await files[i].text();
-        const json = JSON.parse(text);
-        const res = await fetch(WORKER_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(json),
+  async function traverseEntry(entry, pathArr) {
+    if (entry.isFile) {
+      return new Promise(res => {
+        entry.file(f => {
+          if (f.name.endsWith('.json')) {
+            collected.push({ file: f, path: pathArr });
+          }
+          res();
         });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const converted = await res.json();
-        results[i] = { data: converted };
-        setStatus(i, '✅ 완료', 'done');
-      } catch (e) {
-        results[i] = { error: e.message };
-        setStatus(i, `❌ ${e.message}`, 'error');
+      });
+    } else if (entry.isDirectory) {
+      return new Promise(res => {
+        const reader = entry.createReader();
+        function readAll() {
+          reader.readEntries(async entries => {
+            if (!entries.length) return res();
+            await Promise.all(entries.map(ent => traverseEntry(ent, [...pathArr, entry.name])));
+            readAll();
+          });
+        }
+        readAll();
+      });
+    }
+  }
+
+  const promises = items
+    .filter(it => it.kind === 'file')
+    .map(it => it.webkitGetAsEntry())
+    .filter(Boolean)
+    .map(entry => traverseEntry(entry, []));
+
+  await Promise.all(promises);
+  addFilesRaw(collected);
+});
+
+// ─────────────────────────────────────────
+// ADD FILES
+// ─────────────────────────────────────────
+function addFiles(fileArr, useRelativePath) {
+  const raw = fileArr
+    .filter(f => f.name.endsWith('.json'))
+    .map(f => {
+      const rp = f.webkitRelativePath || f.name;
+      const parts = rp.split('/');
+      const pathArr = parts.slice(0, -1); // directory parts
+      return { file: f, path: pathArr };
+    });
+  addFilesRaw(raw);
+}
+
+function addFilesRaw(rawArr) {
+  if (!rawArr.length) return;
+  rawArr.forEach(({ file, path }) => {
+    const id = ++idCounter;
+    fileMap.set(id, { file, path });
+  });
+  updateUI();
+}
+
+// ─────────────────────────────────────────
+// BUILD TREE DATA
+// ─────────────────────────────────────────
+function buildTreeData(map) {
+  // Returns nested structure: { type:'folder'|'file', name, children?, id? }
+  const root = { type: 'folder', name: '__root__', children: [] };
+
+  map.forEach((entry, id) => {
+    const { file, path } = entry;
+    let cur = root;
+    path.forEach(seg => {
+      let child = cur.children.find(c => c.type === 'folder' && c.name === seg);
+      if (!child) {
+        child = { type: 'folder', name: seg, children: [] };
+        cur.children.push(child);
       }
+      cur = child;
+    });
+    cur.children.push({ type: 'file', name: file.name, id });
+  });
+
+  return root;
+}
+
+// ─────────────────────────────────────────
+// RENDER LEFT TREE
+// ─────────────────────────────────────────
+async function renderLeftTree() {
+  leftTree.innerHTML = '';
+  if (!fileMap.size) return;
+
+  const root = buildTreeData(fileMap);
+
+  function renderNode(node, depth, container) {
+    if (node.type === 'folder' && node.name === '__root__') {
+      node.children.forEach(c => renderNode(c, depth, container));
+      return;
     }
 
-    convertBtn.disabled = false;
-    convertBtn.textContent = '변환 시작';
+    const wrap = document.createElement('div');
+    wrap.className = 'tree-node';
 
-    const hasSuccess = Object.values(results).some(r => !r.error);
-    if (hasSuccess) downloadBtn.style.display = 'block';
-  });
+    const row = document.createElement('div');
+    row.className = 'tree-row';
+    row.style.paddingLeft = (depth * 16 + 4) + 'px';
 
-  downloadBtn.addEventListener('click', async () => {
-    const zip = new JSZip();
-    files.forEach((f, i) => {
-      if (results[i] && !results[i].error) {
-        const arlName = f.name.replace(/\.json$/, '.arl');
-        zip.file(arlName, JSON.stringify(results[i].data, null, 2));
-      }
+    if (node.type === 'folder') {
+      const toggle = document.createElement('div');
+      toggle.className = 'tree-toggle';
+      toggle.textContent = '▶';
+
+      const icon = document.createElement('div');
+      icon.className = 'tree-icon';
+      icon.textContent = '📁';
+
+      const name = document.createElement('div');
+      name.className = 'tree-name folder-name';
+      name.textContent = node.name + '/';
+
+      row.appendChild(toggle);
+      row.appendChild(icon);
+      row.appendChild(name);
+
+      const children = document.createElement('div');
+      children.className = 'tree-children';
+
+      row.addEventListener('click', e => {
+        e.stopPropagation();
+        const open = children.classList.toggle('open');
+        toggle.style.transform = open ? 'rotate(90deg)' : '';
+        icon.textContent = open ? '📂' : '📁';
+      });
+
+      wrap.appendChild(row);
+      wrap.appendChild(children);
+
+      node.children.forEach(c => renderNode(c, depth + 1, children));
+
+    } else {
+      // File node
+      const toggle = document.createElement('div');
+      toggle.className = 'tree-toggle';
+      toggle.textContent = '▶';
+
+      const icon = document.createElement('div');
+      icon.className = 'tree-icon';
+      icon.textContent = '📄';
+
+      const name = document.createElement('div');
+      name.className = 'tree-name file-name';
+      name.textContent = node.name;
+
+      const statusEl = document.createElement('div');
+      statusEl.className = 'tree-status status-waiting';
+      statusEl.id = `status-left-${node.id}`;
+      statusEl.textContent = 'Pending';
+
+      row.appendChild(toggle);
+      row.appendChild(icon);
+      row.appendChild(name);
+      row.appendChild(statusEl);
+
+      // URL list section
+      const urlWrap = document.createElement('div');
+      urlWrap.className = 'url-list';
+      urlWrap.id = `urls-${node.id}`;
+
+      let urlOpen = false;
+      row.addEventListener('click', async e => {
+        e.stopPropagation();
+        urlOpen = !urlOpen;
+        urlWrap.classList.toggle('open', urlOpen);
+        toggle.style.transform = urlOpen ? 'rotate(90deg)' : '';
+        if (urlOpen && !urlWrap.dataset.loaded) {
+          urlWrap.dataset.loaded = '1';
+          await loadUrlPreviews(node.id, urlWrap);
+        }
+      });
+
+      wrap.appendChild(row);
+      wrap.appendChild(urlWrap);
+    }
+
+    container.appendChild(wrap);
+  }
+
+  renderNode(root, 0, leftTree);
+}
+
+// ─────────────────────────────────────────
+// URL PREVIEW LOADER
+// ─────────────────────────────────────────
+async function loadUrlPreviews(id, container) {
+  const entry = fileMap.get(id);
+  if (!entry) return;
+  let json;
+  try {
+    const text = await entry.file.text();
+    json = JSON.parse(text);
+  } catch(e) {
+    const err = document.createElement('div');
+    err.style.cssText = 'font-family:IBM Plex Mono,monospace;font-size:0.65rem;color:var(--error);padding:4px 8px';
+    err.textContent = 'JSON parse error';
+    container.appendChild(err);
+    return;
+  }
+
+  const urls = extractUrls(json);
+  if (!urls.length) {
+    const empty = document.createElement('div');
+    empty.style.cssText = 'font-family:IBM Plex Mono,monospace;font-size:0.65rem;color:var(--text3);padding:4px 8px';
+    empty.textContent = 'No image URLs found';
+    container.appendChild(empty);
+    return;
+  }
+
+  urls.forEach(({ key, url }) => {
+    const item = document.createElement('div');
+    item.className = 'url-item';
+
+    const thumb = document.createElement('img');
+    thumb.className = 'url-thumb';
+    thumb.src = url;
+    thumb.onerror = () => { thumb.style.display='none'; };
+
+    const keyTag = document.createElement('div');
+    keyTag.className = 'url-key';
+    keyTag.textContent = key;
+
+    const urlText = document.createElement('div');
+    urlText.className = 'url-text';
+    urlText.textContent = url;
+    urlText.title = url;
+
+    const previewImg = document.createElement('img');
+    previewImg.className = 'url-preview-img';
+    previewImg.src = url;
+    previewImg.onerror = () => { previewImg.style.display='none'; };
+
+    const expandWrap = document.createElement('div');
+    expandWrap.className = 'url-expand-wrap';
+    expandWrap.appendChild(previewImg);
+
+    const itemWrap = document.createElement('div');
+    itemWrap.style.cssText = 'display:flex;flex-direction:column;gap:0';
+
+    item.appendChild(thumb);
+    item.appendChild(keyTag);
+    item.appendChild(urlText);
+    itemWrap.appendChild(item);
+    itemWrap.appendChild(expandWrap);
+
+    item.addEventListener('click', () => {
+      const open = expandWrap.classList.toggle('open');
+      previewImg.classList.toggle('shown', open);
+      item.classList.toggle('expanded', open);
     });
-    const blob = await zip.generateAsync({ type: 'blob' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'converted.zip';
-    a.click();
+
+    container.appendChild(itemWrap);
   });
+}
+
+function extractUrls(obj, prefix, result) {
+  if (!result) result = [];
+  if (!prefix) prefix = '';
+  if (typeof obj === 'string') {
+    if (/^https?:\/\/.+\.(png|jpe?g|gif|webp|svg|bmp|tiff?)(\?.*)?$/i.test(obj) ||
+        /^https?:\/\/.+(image|img|photo|thumb|banner|icon)/i.test(obj)) {
+      result.push({ key: prefix || 'url', url: obj });
+    }
+    return result;
+  }
+  if (Array.isArray(obj)) {
+    obj.forEach((v, i) => extractUrls(v, `${prefix}[${i}]`, result));
+    return result;
+  }
+  if (obj && typeof obj === 'object') {
+    Object.entries(obj).forEach(([k, v]) => extractUrls(v, prefix ? `${prefix}.${k}` : k, result));
+  }
+  return result;
+}
+
+// ─────────────────────────────────────────
+// RENDER RIGHT TREE
+// ─────────────────────────────────────────
+function renderRightTree() {
+  rightTree.innerHTML = '';
+  if (!results.size) {
+    rightOverlay.classList.remove('hidden');
+    return;
+  }
+  rightOverlay.classList.add('hidden');
+
+  // Build same tree structure but only show converted files
+  const root = buildTreeData(fileMap);
+
+  function renderNode(node, depth, container) {
+    if (node.type === 'folder' && node.name === '__root__') {
+      node.children.forEach(c => renderNode(c, depth, container));
+      return;
+    }
+
+    const wrap = document.createElement('div');
+    wrap.className = 'tree-node';
+
+    const row = document.createElement('div');
+    row.className = 'tree-row';
+    row.style.paddingLeft = (depth * 16 + 4) + 'px';
+
+    if (node.type === 'folder') {
+      const toggle = document.createElement('div');
+      toggle.className = 'tree-toggle';
+      toggle.textContent = '▶';
+      toggle.style.transform = 'rotate(90deg)';
+
+      const icon = document.createElement('div');
+      icon.className = 'tree-icon';
+      icon.textContent = '📂';
+
+      const name = document.createElement('div');
+      name.className = 'tree-name folder-name';
+      name.textContent = node.name + '/';
+
+      row.appendChild(toggle);
+      row.appendChild(icon);
+      row.appendChild(name);
+
+      const children = document.createElement('div');
+      children.className = 'tree-children open';
+
+      row.addEventListener('click', e => {
+        e.stopPropagation();
+        const open = children.classList.toggle('open');
+        toggle.style.transform = open ? 'rotate(90deg)' : '';
+        icon.textContent = open ? '📂' : '📁';
+      });
+
+      wrap.appendChild(row);
+      wrap.appendChild(children);
+      node.children.forEach(c => renderNode(c, depth + 1, children));
+
+    } else {
+      const r = results.get(node.id);
+      if (!r) {
+        // Not yet converted
+        const toggle = document.createElement('div');
+        toggle.className = 'tree-toggle';
+        toggle.textContent = ' ';
+        const icon = document.createElement('div');
+        icon.className = 'tree-icon';
+        icon.textContent = '⋯';
+        const name = document.createElement('div');
+        name.className = 'tree-name';
+        name.style.color = 'var(--text3)';
+        name.textContent = node.name.replace(/\.json$/, '.arl');
+        row.appendChild(toggle);
+        row.appendChild(icon);
+        row.appendChild(name);
+      } else if (r.error) {
+        const toggle = document.createElement('div');
+        toggle.className = 'tree-toggle';
+        toggle.textContent = ' ';
+        const icon = document.createElement('div');
+        icon.className = 'tree-icon';
+        icon.textContent = '❌';
+        const name = document.createElement('div');
+        name.className = 'tree-name';
+        name.style.color = 'var(--error)';
+        name.textContent = node.name.replace(/\.json$/, '.arl');
+        const errMsg = document.createElement('div');
+        errMsg.className = 'tree-status status-error';
+        errMsg.textContent = r.error;
+        row.appendChild(toggle);
+        row.appendChild(icon);
+        row.appendChild(name);
+        row.appendChild(errMsg);
+      } else {
+        const toggle = document.createElement('div');
+        toggle.className = 'tree-toggle';
+        toggle.textContent = '▶';
+
+        const icon = document.createElement('div');
+        icon.className = 'tree-icon';
+        icon.textContent = '✅';
+
+        const name = document.createElement('div');
+        name.className = 'tree-name converted-file-name';
+        name.textContent = node.name.replace(/\.json$/, '.arl');
+
+        const sizeEl = document.createElement('div');
+        sizeEl.className = 'tree-status status-done';
+        const bytes = JSON.stringify(r.data).length;
+        sizeEl.textContent = bytes > 1024 ? (bytes/1024).toFixed(1)+'KB' : bytes+'B';
+
+        row.appendChild(toggle);
+        row.appendChild(icon);
+        row.appendChild(name);
+        row.appendChild(sizeEl);
+
+        // JSON preview of converted
+        const preview = document.createElement('div');
+        preview.className = 'url-list';
+        const pre = document.createElement('pre');
+        pre.style.cssText = 'font-family:IBM Plex Mono,monospace;font-size:0.62rem;color:var(--text2);padding:8px 12px;overflow:auto;max-height:200px;background:#060a0e;border-radius:4px;border:1px solid var(--border);white-space:pre-wrap;word-break:break-all';
+        pre.textContent = JSON.stringify(r.data, null, 2).slice(0, 2000) + (JSON.stringify(r.data).length > 2000 ? '\n...' : '');
+
+        const dlItem = document.createElement('div');
+        dlItem.style.cssText = 'display:flex;gap:8px;padding:4px 0 2px 0';
+
+        const dlSingle = document.createElement('button');
+        dlSingle.style.cssText = 'font-family:IBM Plex Mono,monospace;font-size:0.65rem;background:transparent;color:var(--accent2);border:1px solid var(--accent2);border-radius:4px;padding:3px 10px;cursor:pointer';
+        dlSingle.textContent = '⬇ Download this file';
+        dlSingle.addEventListener('click', e => {
+          e.stopPropagation();
+          downloadSingle(node.id);
+        });
+        dlItem.appendChild(dlSingle);
+        preview.appendChild(dlItem);
+        preview.appendChild(pre);
+
+        let open = false;
+        row.addEventListener('click', e => {
+          e.stopPropagation();
+          open = !open;
+          preview.classList.toggle('open', open);
+          toggle.style.transform = open ? 'rotate(90deg)' : '';
+        });
+
+        wrap.appendChild(row);
+        wrap.appendChild(preview);
+        container.appendChild(wrap);
+        return;
+      }
+
+      wrap.appendChild(row);
+    }
+
+    container.appendChild(wrap);
+  }
+
+  renderNode(root, 0, rightTree);
+}
+
+// ─────────────────────────────────────────
+// CONVERT
+// ─────────────────────────────────────────
+convertBtn.addEventListener('click', async () => {
+  convertBtn.disabled = true;
+  convertBtn.textContent = '⏳ Converting...';
+  results.clear();
+
+  progressWrap.classList.add('visible');
+  const total = fileMap.size;
+  let done = 0;
+
+  const ids = [...fileMap.keys()];
+  for (const id of ids) {
+    const statusEl = document.getElementById(`status-left-${id}`);
+    if (statusEl) { statusEl.className = 'tree-status status-processing'; statusEl.textContent = 'Processing...'; }
+
+    try {
+      const entry = fileMap.get(id);
+      const text = await entry.file.text();
+      const json = JSON.parse(text);
+      const res = await fetch(WORKER_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(json),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const converted = await res.json();
+      results.set(id, { data: converted });
+      if (statusEl) { statusEl.className = 'tree-status status-done'; statusEl.textContent = '✅ Done'; }
+    } catch(e) {
+      results.set(id, { error: e.message });
+      if (statusEl) { statusEl.className = 'tree-status status-error'; statusEl.textContent = '❌ Error'; }
+    }
+
+    done++;
+    progressBar.style.width = (done / total * 100) + '%';
+  }
+
+  setTimeout(() => progressWrap.classList.remove('visible'), 800);
+
+  convertBtn.disabled = false;
+  convertBtn.textContent = '⚡ Convert';
+
+  const hasSuccess = [...results.values()].some(r => !r.error);
+  dlZipBtn.style.display = hasSuccess ? 'inline-flex' : 'none';
+  dlFolderBtn.style.display = (hasSuccess && 'showDirectoryPicker' in window) ? 'inline-flex' : 'none';
+
+  renderRightTree();
+});
+
+// ─────────────────────────────────────────
+// DOWNLOAD SINGLE
+// ─────────────────────────────────────────
+function downloadSingle(id) {
+  const r = results.get(id);
+  if (!r || r.error) return;
+  const entry = fileMap.get(id);
+  const arlName = entry.file.name.replace(/\.json$/, '.arl');
+  const blob = new Blob([JSON.stringify(r.data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = arlName;
+  a.click();
+}
+
+// ─────────────────────────────────────────
+// DOWNLOAD ZIP
+// ─────────────────────────────────────────
+dlZipBtn.addEventListener('click', async () => {
+  const zip = new JSZip();
+  fileMap.forEach((entry, id) => {
+    const r = results.get(id);
+    if (!r || r.error) return;
+    const parts = [...entry.path, entry.file.name.replace(/\.json$/, '.arl')];
+    const zipPath = parts.join('/');
+    zip.file(zipPath, JSON.stringify(r.data, null, 2));
+  });
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'converted.zip';
+  a.click();
+});
+
+// ─────────────────────────────────────────
+// DOWNLOAD AS FOLDER (File System Access API)
+// ─────────────────────────────────────────
+dlFolderBtn.addEventListener('click', async () => {
+  if (!('showDirectoryPicker' in window)) {
+    alert('Folder saving is not supported in this browser. Please use ZIP download.');
+    return;
+  }
+  try {
+    const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+
+    for (const [id, entry] of fileMap) {
+      const r = results.get(id);
+      if (!r || r.error) continue;
+
+      let curDir = dirHandle;
+      for (const seg of entry.path) {
+        curDir = await curDir.getDirectoryHandle(seg, { create: true });
+      }
+      const arlName = entry.file.name.replace(/\.json$/, '.arl');
+      const fileHandle = await curDir.getFileHandle(arlName, { create: true });
+      const writable = await fileHandle.createWritable();
+      await writable.write(JSON.stringify(r.data, null, 2));
+      await writable.close();
+    }
+
+    alert('✅ Saved to folder successfully!');
+  } catch (e) {
+    if (e.name !== 'AbortError') alert('Save error: ' + e.message);
+  }
+});
+
+// ─────────────────────────────────────────
+// CLEAR
+// ─────────────────────────────────────────
+function clearAll() {
+  fileMap.clear();
+  results.clear();
+  idCounter = 0;
+  leftTree.innerHTML = '';
+  rightTree.innerHTML = '';
+  convertBtn.style.display = 'none';
+  dlZipBtn.style.display = 'none';
+  dlFolderBtn.style.display = 'none';
+  clearBtnEl.style.display = 'none';
+  dropOverlay.classList.remove('hidden');
+  rightOverlay.classList.remove('hidden');
+  fileCountEl.textContent = 'No files';}
+
+// ─────────────────────────────────────────
+// UPDATE UI
+// ─────────────────────────────────────────
+function updateUI() {
+  const count = fileMap.size;
+  fileCountEl.textContent = count ? `${count} file(s)` : 'No files';
+  convertBtn.style.display = count ? 'inline-flex' : 'none';
+  clearBtnEl.style.display = count ? 'inline-flex' : 'none';
+  dropOverlay.classList.toggle('hidden', count > 0);
+  renderLeftTree();
+  renderRightTree();
+}
+
+// ─────────────────────────────────────────
+// RESIZER
+// ─────────────────────────────────────────
+const resizer = document.getElementById('resizer');
+const panelLeft = document.getElementById('panelLeft');
+const panelRight = document.getElementById('panelRight');
+
+let isResizing = false;
+let startX, startLeftW;
+
+resizer.addEventListener('mousedown', e => {
+  isResizing = true;
+  startX = e.clientX;
+  startLeftW = panelLeft.getBoundingClientRect().width;
+  resizer.classList.add('dragging');
+  document.body.style.cursor = 'col-resize';
+  document.body.style.userSelect = 'none';
+});
+
+document.addEventListener('mousemove', e => {
+  if (!isResizing) return;
+  const dx = e.clientX - startX;
+  const totalW = workspace.getBoundingClientRect().width - 4;
+  let newLeft = startLeftW + dx;
+  newLeft = Math.max(200, Math.min(totalW - 200, newLeft));
+  panelLeft.style.flex = 'none';
+  panelLeft.style.width = newLeft + 'px';
+  panelRight.style.flex = '1';
+});
+
+document.addEventListener('mouseup', () => {
+  if (!isResizing) return;
+  isResizing = false;
+  resizer.classList.remove('dragging');
+  document.body.style.cursor = '';
+  document.body.style.userSelect = '';
+});
 </script>
 </body>
 </html>
