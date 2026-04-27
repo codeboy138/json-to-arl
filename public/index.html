@@ -952,6 +952,270 @@
   }
   .b64-convert-btn:hover { background: #0066bb; }
   .b64-convert-btn:disabled { background: var(--border); color: var(--text3); cursor: not-allowed; }
+  /* ── PHOTO SEARCH PANEL ── */
+  .search-panel {
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+  .search-toggle-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .search-toggle-bar:hover { background: var(--surface2); }
+  .search-toggle-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text2);
+  }
+  .search-toggle-hint {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.8rem;
+    color: var(--text3);
+  }
+  .search-chevron {
+    font-size: 0.875rem;
+    color: var(--text3);
+    transition: transform 0.2s;
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+  .search-chevron.open { transform: rotate(180deg); }
+
+  .search-body {
+    display: none;
+    flex-direction: column;
+    gap: 10px;
+    padding: 0 14px 14px 14px;
+  }
+  .search-body.open { display: flex; }
+
+  /* API key settings row */
+  .api-keys-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .api-key-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+    min-width: 160px;
+  }
+  .api-key-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--text3);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .api-key-label span {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 3px;
+    vertical-align: middle;
+  }
+  .api-key-unsplash { background: #111; }
+  .api-key-pexels   { background: #07a081; }
+  .api-key-pixabay  { background: #1d8c2e; }
+
+  .api-key-input {
+    flex: 1;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.75rem;
+    padding: 5px 8px;
+    border: 1px solid var(--border2);
+    border-radius: 4px;
+    background: var(--surface);
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s;
+    min-width: 0;
+  }
+  .api-key-input:focus { border-color: var(--accent); }
+  .api-key-input.has-key { border-color: var(--done); }
+  .api-key-input::placeholder { color: var(--text3); }
+
+  /* Source checkboxes */
+  .search-sources-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .search-src-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--text3);
+    flex-shrink: 0;
+  }
+  .src-check-wrap {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .src-check-wrap input[type=checkbox] {
+    width: 14px; height: 14px;
+    accent-color: var(--accent);
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+  .src-chip {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.78rem;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 10px;
+    white-space: nowrap;
+  }
+  .src-chip.unsplash { background: #e8e8e8; color: #111; }
+  .src-chip.pexels   { background: #d0f4ec; color: #07a081; }
+  .src-chip.pixabay  { background: #d4f0d8; color: #1d8c2e; }
+  .src-chip.disabled { opacity: 0.4; }
+
+  /* Search input row */
+  .search-input-row {
+    display: flex;
+    gap: 8px;
+  }
+  .search-keyword-input {
+    flex: 1;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875rem;
+    padding: 7px 12px;
+    border: 1px solid var(--border2);
+    border-radius: 5px;
+    background: var(--surface);
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .search-keyword-input:focus { border-color: var(--accent); }
+  .search-keyword-input::placeholder { color: var(--text3); }
+
+  .btn-search {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875rem;
+    font-weight: 600;
+    padding: 7px 16px;
+    border-radius: 5px;
+    border: none;
+    background: var(--accent);
+    color: #f5f6f7;
+    cursor: pointer;
+    transition: background 0.15s;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .btn-search:hover { background: #0066bb; }
+  .btn-search:disabled { background: var(--border); color: var(--text3); cursor: not-allowed; }
+
+  /* Per-page count */
+  .search-per-page {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.75rem;
+    padding: 5px 8px;
+    border: 1px solid var(--border2);
+    border-radius: 4px;
+    background: var(--surface);
+    color: var(--text2);
+    outline: none;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  /* Results area */
+  .search-results-wrap {
+    max-height: 320px;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+  .search-results-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 6px;
+  }
+  .search-result-item {
+    position: relative;
+    aspect-ratio: 1;
+    border-radius: 5px;
+    overflow: hidden;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: border-color 0.15s, transform 0.1s;
+    background: var(--border);
+  }
+  .search-result-item:hover { border-color: var(--accent); transform: scale(1.02); }
+  .search-result-item.selected { border-color: var(--accent); }
+  .search-result-item.added { border-color: var(--done); }
+
+  .search-result-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .search-result-source {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.6rem;
+    font-weight: 600;
+    padding: 1px 5px;
+    border-radius: 3px;
+    pointer-events: none;
+  }
+  .src-badge-unsplash { background: rgba(0,0,0,0.7); color: #fff; }
+  .src-badge-pexels   { background: rgba(7,160,129,0.85); color: #fff; }
+  .src-badge-pixabay  { background: rgba(29,140,46,0.85); color: #fff; }
+
+  .search-result-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,119,204,0.55);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+  }
+  .search-result-item:hover .search-result-overlay { display: flex; }
+  .search-result-item.added .search-result-overlay { display: flex; background: rgba(26,122,42,0.55); }
+
+  .search-status-bar {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.8rem;
+    color: var(--text3);
+    padding: 4px 0;
+    min-height: 20px;
+  }
+  .search-status-bar.err { color: var(--error); }
+  .search-status-bar.ok  { color: var(--done); }
+
+  .search-load-more {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.8rem;
+    padding: 6px 14px;
+    border-radius: 4px;
+    border: 1px solid var(--border2);
+    background: transparent;
+    color: var(--text2);
+    cursor: pointer;
+    transition: all 0.15s;
+    display: none;
+    margin-top: 4px;
+  }
+  .search-load-more:hover { background: var(--accent); color: #f5f6f7; border-color: var(--accent); }
 </style>
 </head>
 <body>
@@ -1082,6 +1346,73 @@
       <button class="b64-convert-btn" id="b64ConvertBtn" style="margin-left:auto">⚡ Convert All</button>
       <button class="clear-btn" id="b64ClearAllBtn" style="display:none;margin-left:4px">✕ Clear All</button>
     </div>
+
+    <!-- PHOTO SEARCH PANEL -->
+    <div class="search-panel" id="searchPanel">
+      <div class="search-toggle-bar" id="searchToggleBar">
+        <span style="font-size:0.875rem">🔍</span>
+        <span class="search-toggle-title">Photo Search</span>
+        <span class="search-toggle-hint">Unsplash · Pexels · Pixabay</span>
+        <span class="search-chevron" id="searchChevron">▼</span>
+      </div>
+      <div class="search-body" id="searchBody">
+
+        <!-- API Keys -->
+        <div class="api-keys-row" id="apiKeysRow">
+          <div class="api-key-group">
+            <div class="api-key-label"><span class="api-key-unsplash"></span>Unsplash</div>
+            <input class="api-key-input" id="keyUnsplash" type="password" placeholder="Access Key" autocomplete="off">
+          </div>
+          <div class="api-key-group">
+            <div class="api-key-label"><span class="api-key-pexels"></span>Pexels</div>
+            <input class="api-key-input" id="keyPexels" type="password" placeholder="API Key" autocomplete="off">
+          </div>
+          <div class="api-key-group">
+            <div class="api-key-label"><span class="api-key-pixabay"></span>Pixabay</div>
+            <input class="api-key-input" id="keyPixabay" type="password" placeholder="API Key" autocomplete="off">
+          </div>
+        </div>
+
+        <!-- Source toggles -->
+        <div class="search-sources-row">
+          <span class="search-src-label">Search in:</span>
+          <label class="src-check-wrap">
+            <input type="checkbox" id="srcUnsplash" checked>
+            <span class="src-chip unsplash" id="chipUnsplash">Unsplash</span>
+          </label>
+          <label class="src-check-wrap">
+            <input type="checkbox" id="srcPexels" checked>
+            <span class="src-chip pexels" id="chipPexels">Pexels</span>
+          </label>
+          <label class="src-check-wrap">
+            <input type="checkbox" id="srcPixabay" checked>
+            <span class="src-chip pixabay" id="chipPixabay">Pixabay</span>
+          </label>
+          <select class="search-per-page" id="searchPerPage">
+            <option value="9">9 per source</option>
+            <option value="15" selected>15 per source</option>
+            <option value="30">30 per source</option>
+          </select>
+        </div>
+
+        <!-- Search input -->
+        <div class="search-input-row">
+          <input class="search-keyword-input" id="searchKeyword" type="text" placeholder="e.g. mountain, city, food ...">
+          <button class="btn-search" id="btnSearch">🔍 Search</button>
+        </div>
+
+        <!-- Status -->
+        <div class="search-status-bar" id="searchStatus"></div>
+
+        <!-- Results grid -->
+        <div class="search-results-wrap" id="searchResultsWrap" style="display:none">
+          <div class="search-results-grid" id="searchResultsGrid"></div>
+          <button class="search-load-more" id="searchLoadMore">＋ Load More</button>
+        </div>
+
+      </div>
+    </div>
+
     <div class="b64-body" id="b64Body">
       <div class="b64-input-row">
         <input type="text" class="b64-url-input" id="b64UrlInput" placeholder="https://example.com/image.png  ← Paste image URL here">
@@ -2119,6 +2450,225 @@ document.getElementById('btnPasteClipboard').addEventListener('click', async () 
     }, 2500);
   }
 });
+
+// ─────────────────────────────────────────
+// PHOTO SEARCH
+// ─────────────────────────────────────────
+(function() {
+
+// ── Elements ──
+const searchToggleBar  = document.getElementById('searchToggleBar');
+const searchChevron    = document.getElementById('searchChevron');
+const searchBody       = document.getElementById('searchBody');
+const keyUnsplash      = document.getElementById('keyUnsplash');
+const keyPexels        = document.getElementById('keyPexels');
+const keyPixabay       = document.getElementById('keyPixabay');
+const srcUnsplash      = document.getElementById('srcUnsplash');
+const srcPexels        = document.getElementById('srcPexels');
+const srcPixabay       = document.getElementById('srcPixabay');
+const chipUnsplash     = document.getElementById('chipUnsplash');
+const chipPexels       = document.getElementById('chipPexels');
+const chipPixabay      = document.getElementById('chipPixabay');
+const searchKeyword    = document.getElementById('searchKeyword');
+const btnSearch        = document.getElementById('btnSearch');
+const searchStatus     = document.getElementById('searchStatus');
+const searchResultsWrap= document.getElementById('searchResultsWrap');
+const searchResultsGrid= document.getElementById('searchResultsGrid');
+const searchLoadMore   = document.getElementById('searchLoadMore');
+const searchPerPage    = document.getElementById('searchPerPage');
+
+// ── State ──
+let searchPage = { unsplash: 1, pexels: 1, pixabay: 1 };
+let lastKeyword = '';
+let addedUrls = new Set();
+
+// ── Persist API keys in localStorage ──
+['keyUnsplash','keyPexels','keyPixabay'].forEach(id => {
+  const el = document.getElementById(id);
+  const saved = localStorage.getItem('ps_' + id);
+  if (saved) { el.value = saved; el.classList.add('has-key'); }
+  el.addEventListener('input', () => {
+    localStorage.setItem('ps_' + id, el.value.trim());
+    el.classList.toggle('has-key', !!el.value.trim());
+    updateChips();
+  });
+});
+
+function updateChips() {
+  chipUnsplash.classList.toggle('disabled', !keyUnsplash.value.trim());
+  chipPexels.classList.toggle('disabled', !keyPexels.value.trim());
+  chipPixabay.classList.toggle('disabled', !keyPixabay.value.trim());
+}
+updateChips();
+
+// ── Toggle panel ──
+searchToggleBar.addEventListener('click', () => {
+  const open = searchBody.classList.toggle('open');
+  searchChevron.classList.toggle('open', open);
+});
+
+// ── Source chip disabled feedback ──
+[srcUnsplash, srcPexels, srcPixabay].forEach(cb => {
+  cb.addEventListener('change', updateChips);
+});
+
+// ── Search ──
+btnSearch.addEventListener('click', () => doSearch(true));
+searchKeyword.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(true); });
+searchLoadMore.addEventListener('click', () => doSearch(false));
+
+async function doSearch(fresh) {
+  const kw = searchKeyword.value.trim();
+  if (!kw) { setStatus('Enter a keyword', 'err'); return; }
+  const perPage = parseInt(searchPerPage.value);
+
+  // Determine active sources (checked + has key)
+  const sources = [];
+  if (srcUnsplash.checked && keyUnsplash.value.trim()) sources.push('unsplash');
+  if (srcPexels.checked   && keyPexels.value.trim())   sources.push('pexels');
+  if (srcPixabay.checked  && keyPixabay.value.trim())  sources.push('pixabay');
+
+  // Warn about missing keys
+  const wantedButMissing = [];
+  if (srcUnsplash.checked && !keyUnsplash.value.trim()) wantedButMissing.push('Unsplash');
+  if (srcPexels.checked   && !keyPexels.value.trim())   wantedButMissing.push('Pexels');
+  if (srcPixabay.checked  && !keyPixabay.value.trim())  wantedButMissing.push('Pixabay');
+
+  if (!sources.length) {
+    setStatus('⚠ Enter API keys for the selected sources', 'err');
+    return;
+  }
+
+  if (fresh) {
+    searchPage = { unsplash: 1, pexels: 1, pixabay: 1 };
+    lastKeyword = kw;
+    searchResultsGrid.innerHTML = '';
+    addedUrls.clear();
+  }
+
+  btnSearch.disabled = true;
+  searchLoadMore.style.display = 'none';
+  setStatus(`Searching "${kw}" in ${sources.join(', ')}...`);
+  searchResultsWrap.style.display = '';
+
+  const promises = sources.map(src => fetchSource(src, kw, perPage));
+  const results = await Promise.allSettled(promises);
+
+  let totalAdded = 0;
+  results.forEach((res, i) => {
+    if (res.status === 'fulfilled') {
+      res.value.forEach(item => renderSearchResult(item));
+      totalAdded += res.value.length;
+      searchPage[sources[i]]++;
+    } else {
+      console.warn(sources[i], res.reason);
+    }
+  });
+
+  const missingNote = wantedButMissing.length ? ` (${wantedButMissing.join(', ')}: no key)` : '';
+  setStatus(`Found ${totalAdded} photos${missingNote}`, totalAdded ? 'ok' : 'err');
+  searchLoadMore.style.display = totalAdded ? '' : 'none';
+  btnSearch.disabled = false;
+}
+
+// ── Fetch per source ──
+async function fetchSource(src, kw, perPage) {
+  if (src === 'unsplash') return fetchUnsplash(kw, perPage);
+  if (src === 'pexels')   return fetchPexels(kw, perPage);
+  if (src === 'pixabay')  return fetchPixabay(kw, perPage);
+  return [];
+}
+
+async function fetchUnsplash(kw, perPage) {
+  const page = searchPage.unsplash;
+  const url = `https://api.unsplash.com/search/photos?query=${encodeURIComponent(kw)}&per_page=${perPage}&page=${page}&client_id=${keyUnsplash.value.trim()}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Unsplash HTTP ${res.status}`);
+  const data = await res.json();
+  return (data.results || []).map(p => ({
+    src: 'unsplash',
+    thumb: p.urls.small,
+    full: p.urls.regular,
+    alt: p.alt_description || kw,
+    author: p.user?.name || '',
+    link: p.links?.html || ''
+  }));
+}
+
+async function fetchPexels(kw, perPage) {
+  const page = searchPage.pexels;
+  const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(kw)}&per_page=${perPage}&page=${page}`;
+  const res = await fetch(url, { headers: { Authorization: keyPexels.value.trim() } });
+  if (!res.ok) throw new Error(`Pexels HTTP ${res.status}`);
+  const data = await res.json();
+  return (data.photos || []).map(p => ({
+    src: 'pexels',
+    thumb: p.src.medium,
+    full: p.src.large,
+    alt: p.alt || kw,
+    author: p.photographer || '',
+    link: p.url || ''
+  }));
+}
+
+async function fetchPixabay(kw, perPage) {
+  const page = searchPage.pixabay;
+  const url = `https://pixabay.com/api/?key=${keyPixabay.value.trim()}&q=${encodeURIComponent(kw)}&per_page=${perPage}&page=${page}&image_type=photo&safesearch=true`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Pixabay HTTP ${res.status}`);
+  const data = await res.json();
+  return (data.hits || []).map(p => ({
+    src: 'pixabay',
+    thumb: p.previewURL,
+    full: p.webformatURL,
+    alt: p.tags || kw,
+    author: p.user || '',
+    link: p.pageURL || ''
+  }));
+}
+
+// ── Render result card ──
+function renderSearchResult(item) {
+  const card = document.createElement('div');
+  card.className = 'search-result-item' + (addedUrls.has(item.full) ? ' added' : '');
+  card.title = `${item.alt}\nby ${item.author}`;
+
+  const img = document.createElement('img');
+  img.className = 'search-result-img';
+  img.src = item.thumb;
+  img.alt = item.alt;
+  img.loading = 'lazy';
+
+  const badge = document.createElement('div');
+  badge.className = `search-result-source src-badge-${item.src}`;
+  badge.textContent = item.src[0].toUpperCase() + item.src.slice(1);
+
+  const overlay = document.createElement('div');
+  overlay.className = 'search-result-overlay';
+  overlay.textContent = addedUrls.has(item.full) ? '✓' : '＋';
+
+  card.appendChild(img);
+  card.appendChild(badge);
+  card.appendChild(overlay);
+
+  card.addEventListener('click', () => {
+    if (addedUrls.has(item.full)) return;
+    addedUrls.add(item.full);
+    card.classList.add('added');
+    overlay.textContent = '✓';
+    // Add to b64 queue
+    b64AddUrl(item.full);
+  });
+
+  searchResultsGrid.appendChild(card);
+}
+
+function setStatus(msg, type) {
+  searchStatus.textContent = msg;
+  searchStatus.className = 'search-status-bar' + (type ? ' ' + type : '');
+}
+
+})(); // end PHOTO SEARCH IIFE
 
 // ─────────────────────────────────────────
 // MODE SWITCHER
