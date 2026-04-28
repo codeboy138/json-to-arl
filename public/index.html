@@ -1134,16 +1134,83 @@
     flex-shrink: 0;
   }
 
-  /* Results area */
-  .search-results-wrap {
-    max-height: 320px;
+  /* Results area — fullscreen modal */
+  .search-modal-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(10,15,20,0.72);
+    z-index: 1000;
+    align-items: stretch;
+    justify-content: stretch;
+  }
+  .search-modal-backdrop.open { display: flex; }
+
+  .search-modal {
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .search-modal-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+
+  .search-modal-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text2);
+  }
+
+  .search-modal-close {
+    margin-left: auto;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875rem;
+    padding: 5px 12px;
+    border-radius: 4px;
+    border: 1px solid var(--border2);
+    background: transparent;
+    color: var(--text2);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .search-modal-close:hover { background: var(--error); color: #fff; border-color: var(--error); }
+
+  .search-modal-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+
+  .search-modal-body {
+    flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
+    padding: 12px 16px;
+    min-height: 0;
+  }
+
+  .search-results-wrap {
+    /* no max-height — modal body scrolls */
   }
   .search-results-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-    gap: 6px;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 8px;
   }
   .search-result-item {
     position: relative;
@@ -1216,6 +1283,67 @@
     margin-top: 4px;
   }
   .search-load-more:hover { background: var(--accent); color: #f5f6f7; border-color: var(--accent); }
+
+  /* ── FILENAME EDIT MODAL ── */
+  .fname-modal-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(10,15,20,0.55);
+    z-index: 2000;
+    align-items: center;
+    justify-content: center;
+  }
+  .fname-modal-backdrop.open { display: flex; }
+  .fname-modal {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    padding: 20px 24px;
+    min-width: 360px;
+    max-width: 520px;
+    width: 90vw;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+  }
+  .fname-modal-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .fname-modal input {
+    width: 100%;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875rem;
+    padding: 8px 12px;
+    border: 1px solid var(--border2);
+    border-radius: 5px;
+    background: var(--bg);
+    color: var(--text);
+    outline: none;
+  }
+  .fname-modal input:focus { border-color: var(--accent); }
+  .fname-modal-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+  .fname-modal-actions button {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875rem;
+    padding: 6px 16px;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .fname-btn-ok { background: var(--accent); color: #f5f6f7; }
+  .fname-btn-ok:hover { background: #0066bb; }
+  .fname-btn-cancel { background: var(--surface2); color: var(--text2); border: 1px solid var(--border) !important; }
+  .fname-btn-cancel:hover { background: var(--border); }
 </style>
 </head>
 <body>
@@ -1357,20 +1485,9 @@
       </div>
       <div class="search-body" id="searchBody">
 
-        <!-- API Keys -->
-        <div class="api-keys-row" id="apiKeysRow">
-          <div class="api-key-group">
-            <div class="api-key-label"><span class="api-key-unsplash"></span>Unsplash</div>
-            <input class="api-key-input" id="keyUnsplash" type="password" placeholder="Access Key" autocomplete="off">
-          </div>
-          <div class="api-key-group">
-            <div class="api-key-label"><span class="api-key-pexels"></span>Pexels</div>
-            <input class="api-key-input" id="keyPexels" type="password" placeholder="API Key" autocomplete="off">
-          </div>
-          <div class="api-key-group">
-            <div class="api-key-label"><span class="api-key-pixabay"></span>Pixabay</div>
-            <input class="api-key-input" id="keyPixabay" type="password" placeholder="API Key" autocomplete="off">
-          </div>
+        <!-- API keys are stored as Cloudflare Worker Secrets — no input needed -->
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:0.78rem;color:var(--done);padding:4px 0;">
+          🔐 API keys are secured in Cloudflare Worker Secrets
         </div>
 
         <!-- Source toggles -->
@@ -1403,12 +1520,6 @@
 
         <!-- Status -->
         <div class="search-status-bar" id="searchStatus"></div>
-
-        <!-- Results grid -->
-        <div class="search-results-wrap" id="searchResultsWrap" style="display:none">
-          <div class="search-results-grid" id="searchResultsGrid"></div>
-          <button class="search-load-more" id="searchLoadMore">＋ Load More</button>
-        </div>
 
       </div>
     </div>
@@ -1451,11 +1562,45 @@
 
 </div>
 
+<!-- SEARCH FULLSCREEN MODAL -->
+<div class="search-modal-backdrop" id="searchModalBackdrop">
+  <div class="search-modal">
+    <div class="search-modal-header">
+      <span style="font-size:1rem">🔍</span>
+      <span class="search-modal-title">Photo Search — <span id="searchModalKw" style="color:var(--accent)"></span></span>
+      <button class="search-modal-close" id="searchModalClose">✕ Close</button>
+    </div>
+    <div class="search-modal-controls" id="searchModalControls">
+      <!-- source toggles + per-page + search input re-rendered here by JS -->
+    </div>
+    <div class="search-modal-body">
+      <div class="search-status-bar" id="searchStatusModal"></div>
+      <div class="search-results-wrap" id="searchResultsWrap" style="display:none">
+        <div class="search-results-grid" id="searchResultsGrid"></div>
+        <button class="search-load-more" id="searchLoadMore">＋ Load More</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FILENAME EDIT MODAL -->
+<div class="fname-modal-backdrop" id="fnameModalBackdrop">
+  <div class="fname-modal">
+    <div class="fname-modal-title">💾 Save as...</div>
+    <input type="text" id="fnameInput" spellcheck="false">
+    <div class="fname-modal-actions">
+      <button class="fname-btn-cancel" id="fnameCancelBtn">Cancel</button>
+      <button class="fname-btn-ok" id="fnameOkBtn">⬇ Download</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ─────────────────────────────────────────
 // STATE
 // ─────────────────────────────────────────
 const WORKER_URL = 'https://json-to-arl.cwicwi2016.workers.dev/convert';
+const SEARCH_WORKER_URL = 'https://json-to-arl.cwicwi2016.workers.dev/search';
 
 // fileMap: Map<id, { file, path (array), relativePath (string) }>
 let fileMap = new Map();
@@ -2179,18 +2324,53 @@ convertBtn.addEventListener('click', async () => {
 });
 
 // ─────────────────────────────────────────
+// FILENAME MODAL
+// ─────────────────────────────────────────
+const fnameModalBackdrop = document.getElementById('fnameModalBackdrop');
+const fnameInput         = document.getElementById('fnameInput');
+const fnameOkBtn         = document.getElementById('fnameOkBtn');
+const fnameCancelBtn     = document.getElementById('fnameCancelBtn');
+let _fnameCallback = null;
+
+function openFnameModal(defaultName, cb) {
+  fnameInput.value = defaultName;
+  _fnameCallback = cb;
+  fnameModalBackdrop.classList.add('open');
+  setTimeout(() => { fnameInput.focus(); fnameInput.select(); }, 50);
+}
+fnameOkBtn.addEventListener('click', () => {
+  const name = fnameInput.value.trim() || fnameInput.placeholder;
+  fnameModalBackdrop.classList.remove('open');
+  if (_fnameCallback) _fnameCallback(name);
+});
+fnameCancelBtn.addEventListener('click', () => {
+  fnameModalBackdrop.classList.remove('open');
+  _fnameCallback = null;
+});
+fnameInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') fnameOkBtn.click();
+  if (e.key === 'Escape') fnameCancelBtn.click();
+});
+fnameModalBackdrop.addEventListener('click', e => {
+  if (e.target === fnameModalBackdrop) fnameCancelBtn.click();
+});
+
+// ─────────────────────────────────────────
 // DOWNLOAD SINGLE
 // ─────────────────────────────────────────
 function downloadSingle(id) {
   const r = results.get(id);
   if (!r || r.error) return;
   const entry = fileMap.get(id);
-  const arlName = entry.file.name.replace(/\.json$/, '.arl');
-  const blob = new Blob([JSON.stringify(r.data, null, 2)], { type: 'application/json' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = arlName;
-  a.click();
+  const defaultName = entry.file.name.replace(/\.json$/, '.arl');
+  openFnameModal(defaultName, (chosenName) => {
+    const finalName = chosenName.endsWith('.arl') ? chosenName : chosenName.replace(/\.[^.]*$/, '') + '.arl';
+    const blob = new Blob([JSON.stringify(r.data, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = finalName;
+    a.click();
+  });
 }
 
 // ─────────────────────────────────────────
@@ -2452,64 +2632,41 @@ document.getElementById('btnPasteClipboard').addEventListener('click', async () 
 });
 
 // ─────────────────────────────────────────
-// PHOTO SEARCH
+// PHOTO SEARCH (Cloudflare Worker proxy)
 // ─────────────────────────────────────────
 (function() {
 
-// ── Elements ──
-const searchToggleBar  = document.getElementById('searchToggleBar');
-const searchChevron    = document.getElementById('searchChevron');
-const searchBody       = document.getElementById('searchBody');
-const keyUnsplash      = document.getElementById('keyUnsplash');
-const keyPexels        = document.getElementById('keyPexels');
-const keyPixabay       = document.getElementById('keyPixabay');
-const srcUnsplash      = document.getElementById('srcUnsplash');
-const srcPexels        = document.getElementById('srcPexels');
-const srcPixabay       = document.getElementById('srcPixabay');
-const chipUnsplash     = document.getElementById('chipUnsplash');
-const chipPexels       = document.getElementById('chipPexels');
-const chipPixabay      = document.getElementById('chipPixabay');
-const searchKeyword    = document.getElementById('searchKeyword');
-const btnSearch        = document.getElementById('btnSearch');
-const searchStatus     = document.getElementById('searchStatus');
-const searchResultsWrap= document.getElementById('searchResultsWrap');
-const searchResultsGrid= document.getElementById('searchResultsGrid');
-const searchLoadMore   = document.getElementById('searchLoadMore');
-const searchPerPage    = document.getElementById('searchPerPage');
+const searchToggleBar    = document.getElementById('searchToggleBar');
+const searchBody         = document.getElementById('searchBody');
+const srcUnsplash        = document.getElementById('srcUnsplash');
+const srcPexels          = document.getElementById('srcPexels');
+const srcPixabay         = document.getElementById('srcPixabay');
+const searchKeyword      = document.getElementById('searchKeyword');
+const btnSearch          = document.getElementById('btnSearch');
+const searchResultsWrap  = document.getElementById('searchResultsWrap');
+const searchResultsGrid  = document.getElementById('searchResultsGrid');
+const searchLoadMore     = document.getElementById('searchLoadMore');
+const searchPerPage      = document.getElementById('searchPerPage');
+const searchModalBackdrop= document.getElementById('searchModalBackdrop');
+const searchModalClose   = document.getElementById('searchModalClose');
+const searchModalKw      = document.getElementById('searchModalKw');
+const searchStatusModal  = document.getElementById('searchStatusModal');
 
-// ── State ──
 let searchPage = { unsplash: 1, pexels: 1, pixabay: 1 };
-let lastKeyword = '';
 let addedUrls = new Set();
 
-// ── Persist API keys in localStorage ──
-['keyUnsplash','keyPexels','keyPixabay'].forEach(id => {
-  const el = document.getElementById(id);
-  const saved = localStorage.getItem('ps_' + id);
-  if (saved) { el.value = saved; el.classList.add('has-key'); }
-  el.addEventListener('input', () => {
-    localStorage.setItem('ps_' + id, el.value.trim());
-    el.classList.toggle('has-key', !!el.value.trim());
-    updateChips();
-  });
-});
-
-function updateChips() {
-  chipUnsplash.classList.toggle('disabled', !keyUnsplash.value.trim());
-  chipPexels.classList.toggle('disabled', !keyPexels.value.trim());
-  chipPixabay.classList.toggle('disabled', !keyPixabay.value.trim());
-}
-updateChips();
-
-// ── Toggle panel ──
+// ── Open / close modal ──
 searchToggleBar.addEventListener('click', () => {
-  const open = searchBody.classList.toggle('open');
-  searchChevron.classList.toggle('open', open);
+  searchModalBackdrop.classList.add('open');
+  setTimeout(() => searchKeyword.focus(), 80);
 });
-
-// ── Source chip disabled feedback ──
-[srcUnsplash, srcPexels, srcPixabay].forEach(cb => {
-  cb.addEventListener('change', updateChips);
+searchModalClose.addEventListener('click', () => searchModalBackdrop.classList.remove('open'));
+searchModalBackdrop.addEventListener('click', e => {
+  if (e.target === searchModalBackdrop) searchModalBackdrop.classList.remove('open');
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && searchModalBackdrop.classList.contains('open'))
+    searchModalBackdrop.classList.remove('open');
 });
 
 // ── Search ──
@@ -2519,115 +2676,55 @@ searchLoadMore.addEventListener('click', () => doSearch(false));
 
 async function doSearch(fresh) {
   const kw = searchKeyword.value.trim();
-  if (!kw) { setStatus('Enter a keyword', 'err'); return; }
+  if (!kw) { setStatus('키워드를 입력하세요', 'err'); return; }
   const perPage = parseInt(searchPerPage.value);
 
-  // Determine active sources (checked + has key)
   const sources = [];
-  if (srcUnsplash.checked && keyUnsplash.value.trim()) sources.push('unsplash');
-  if (srcPexels.checked   && keyPexels.value.trim())   sources.push('pexels');
-  if (srcPixabay.checked  && keyPixabay.value.trim())  sources.push('pixabay');
-
-  // Warn about missing keys
-  const wantedButMissing = [];
-  if (srcUnsplash.checked && !keyUnsplash.value.trim()) wantedButMissing.push('Unsplash');
-  if (srcPexels.checked   && !keyPexels.value.trim())   wantedButMissing.push('Pexels');
-  if (srcPixabay.checked  && !keyPixabay.value.trim())  wantedButMissing.push('Pixabay');
-
-  if (!sources.length) {
-    setStatus('⚠ Enter API keys for the selected sources', 'err');
-    return;
-  }
+  if (srcUnsplash.checked) sources.push('unsplash');
+  if (srcPexels.checked)   sources.push('pexels');
+  if (srcPixabay.checked)  sources.push('pixabay');
+  if (!sources.length)     { setStatus('⚠ 소스를 선택하세요', 'err'); return; }
 
   if (fresh) {
     searchPage = { unsplash: 1, pexels: 1, pixabay: 1 };
-    lastKeyword = kw;
     searchResultsGrid.innerHTML = '';
     addedUrls.clear();
   }
 
+  searchModalKw.textContent = kw;
   btnSearch.disabled = true;
   searchLoadMore.style.display = 'none';
-  setStatus(`Searching "${kw}" in ${sources.join(', ')}...`);
+  setStatus(`"${kw}" 검색 중...`);
   searchResultsWrap.style.display = '';
 
   const promises = sources.map(src => fetchSource(src, kw, perPage));
-  const results = await Promise.allSettled(promises);
+  const settled  = await Promise.allSettled(promises);
 
-  let totalAdded = 0;
-  results.forEach((res, i) => {
+  let total = 0;
+  settled.forEach((res, i) => {
     if (res.status === 'fulfilled') {
       res.value.forEach(item => renderSearchResult(item));
-      totalAdded += res.value.length;
+      total += res.value.length;
       searchPage[sources[i]]++;
     } else {
       console.warn(sources[i], res.reason);
     }
   });
 
-  const missingNote = wantedButMissing.length ? ` (${wantedButMissing.join(', ')}: no key)` : '';
-  setStatus(`Found ${totalAdded} photos${missingNote}`, totalAdded ? 'ok' : 'err');
-  searchLoadMore.style.display = totalAdded ? '' : 'none';
+  setStatus(total ? `✓ ${total}장 로드됨` : '결과 없음', total ? 'ok' : 'err');
+  searchLoadMore.style.display = total ? '' : 'none';
   btnSearch.disabled = false;
 }
 
-// ── Fetch per source ──
 async function fetchSource(src, kw, perPage) {
-  if (src === 'unsplash') return fetchUnsplash(kw, perPage);
-  if (src === 'pexels')   return fetchPexels(kw, perPage);
-  if (src === 'pixabay')  return fetchPixabay(kw, perPage);
-  return [];
+  const page = searchPage[src];
+  const res = await fetch(
+    `${SEARCH_WORKER_URL}?source=${src}&q=${encodeURIComponent(kw)}&per_page=${perPage}&page=${page}`
+  );
+  if (!res.ok) throw new Error(`${src} HTTP ${res.status}`);
+  return await res.json();
 }
 
-async function fetchUnsplash(kw, perPage) {
-  const page = searchPage.unsplash;
-  const url = `https://api.unsplash.com/search/photos?query=${encodeURIComponent(kw)}&per_page=${perPage}&page=${page}&client_id=${keyUnsplash.value.trim()}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Unsplash HTTP ${res.status}`);
-  const data = await res.json();
-  return (data.results || []).map(p => ({
-    src: 'unsplash',
-    thumb: p.urls.small,
-    full: p.urls.regular,
-    alt: p.alt_description || kw,
-    author: p.user?.name || '',
-    link: p.links?.html || ''
-  }));
-}
-
-async function fetchPexels(kw, perPage) {
-  const page = searchPage.pexels;
-  const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(kw)}&per_page=${perPage}&page=${page}`;
-  const res = await fetch(url, { headers: { Authorization: keyPexels.value.trim() } });
-  if (!res.ok) throw new Error(`Pexels HTTP ${res.status}`);
-  const data = await res.json();
-  return (data.photos || []).map(p => ({
-    src: 'pexels',
-    thumb: p.src.medium,
-    full: p.src.large,
-    alt: p.alt || kw,
-    author: p.photographer || '',
-    link: p.url || ''
-  }));
-}
-
-async function fetchPixabay(kw, perPage) {
-  const page = searchPage.pixabay;
-  const url = `https://pixabay.com/api/?key=${keyPixabay.value.trim()}&q=${encodeURIComponent(kw)}&per_page=${perPage}&page=${page}&image_type=photo&safesearch=true`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Pixabay HTTP ${res.status}`);
-  const data = await res.json();
-  return (data.hits || []).map(p => ({
-    src: 'pixabay',
-    thumb: p.previewURL,
-    full: p.webformatURL,
-    alt: p.tags || kw,
-    author: p.user || '',
-    link: p.pageURL || ''
-  }));
-}
-
-// ── Render result card ──
 function renderSearchResult(item) {
   const card = document.createElement('div');
   card.className = 'search-result-item' + (addedUrls.has(item.full) ? ' added' : '');
@@ -2656,7 +2753,6 @@ function renderSearchResult(item) {
     addedUrls.add(item.full);
     card.classList.add('added');
     overlay.textContent = '✓';
-    // Add to b64 queue
     b64AddUrl(item.full);
   });
 
@@ -2664,8 +2760,8 @@ function renderSearchResult(item) {
 }
 
 function setStatus(msg, type) {
-  searchStatus.textContent = msg;
-  searchStatus.className = 'search-status-bar' + (type ? ' ' + type : '');
+  searchStatusModal.textContent = msg;
+  searchStatusModal.className = 'search-status-bar' + (type ? ' ' + type : '');
 }
 
 })(); // end PHOTO SEARCH IIFE
@@ -2950,11 +3046,14 @@ function b64MakeItemEl(item) {
     downloadBtn.className = 'b64-copy-btn';
     downloadBtn.textContent = '⬇ Download';
     downloadBtn.addEventListener('click', () => {
-      const a = document.createElement('a');
-      a.href = `data:${item.mime};base64,${item.b64}`;
       const ext = item.mime.split('/')[1] || 'png';
-      a.download = `image_${item.id}.${ext}`;
-      a.click();
+      const defaultName = item.isFile ? (item.fileName || `image_${item.id}.${ext}`) : `image_${item.id}.${ext}`;
+      openFnameModal(defaultName, (chosenName) => {
+        const a = document.createElement('a');
+        a.href = `data:${item.mime};base64,${item.b64}`;
+        a.download = chosenName;
+        a.click();
+      });
     });
     btnRow.appendChild(downloadBtn);
 
