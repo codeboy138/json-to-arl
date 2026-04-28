@@ -1239,8 +1239,32 @@
     background: var(--border);
   }
   .search-result-item:hover { border-color: var(--accent); transform: scale(1.02); }
-  .search-result-item.selected { border-color: var(--accent); }
+  .search-result-item.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
   .search-result-item.added { border-color: var(--done); }
+
+  /* Checkbox on search result card */
+  .search-result-check {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    border: 2px solid rgba(255,255,255,0.8);
+    background: rgba(0,0,0,0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    color: #fff;
+    pointer-events: none;
+    transition: background 0.12s, border-color 0.12s;
+  }
+  .search-result-item.selected .search-result-check {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  .search-result-item.selected .search-result-check::after { content: '✓'; }
 
   .search-result-img {
     width: 100%;
@@ -1749,18 +1773,11 @@
 
     <!-- PHOTO SEARCH PANEL -->
     <div class="search-panel" id="searchPanel">
-      <!-- search panel: toggle row + quick input side by side -->
-      <div style="display:flex;align-items:center;border-bottom:1px solid var(--border)">
-        <div class="search-toggle-bar" id="searchToggleBar" style="flex:0 0 auto;border-bottom:none">
-          <span style="font-size:0.875rem">🔍</span>
-          <span class="search-toggle-title">Photo Search</span>
-          <span class="search-toggle-hint">Unsplash · Pexels · Pixabay</span>
-          <span class="search-chevron" id="searchChevron">▼</span>
-        </div>
-        <!-- Always-visible quick search input (outside toggle click zone) -->
-        <input class="search-keyword-input" id="searchKeywordQuick" type="text"
-          placeholder="Quick search — type & press Enter..."
-          style="flex:1;margin:6px 10px 6px 0;font-size:0.8rem;padding:4px 10px;min-width:0">
+      <div class="search-toggle-bar" id="searchToggleBar">
+        <span style="font-size:0.875rem">🔍</span>
+        <span class="search-toggle-title">Photo Search</span>
+        <span class="search-toggle-hint">Unsplash · Pexels · Pixabay</span>
+        <span class="search-chevron" id="searchChevron">▼</span>
       </div>
       <div class="search-body" id="searchBody">
 
@@ -1854,16 +1871,34 @@
       </div>
     </div>
     <!-- Search results tab body -->
-    <div class="b64-body" id="searchResultsPane" style="display:none;padding:10px">
-      <div class="search-status-bar" id="searchStatusPanel" style="margin-bottom:8px"></div>
-      <div class="search-results-wrap" id="searchResultsWrap" style="display:none">
-        <div class="search-results-grid" id="searchResultsGrid"></div>
-        <button class="search-load-more" id="searchLoadMore" style="display:none;margin:12px auto;display:block">＋ Load More</button>
+    <div class="b64-body" id="searchResultsPane" style="display:none;padding:0;flex-direction:column">
+      <!-- Selection action bar -->
+      <div id="searchSelBar" style="display:none;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;flex-wrap:wrap">
+        <span id="searchSelCount" style="font-family:'IBM Plex Mono',monospace;font-size:0.8rem;color:var(--accent);font-weight:600"></span>
+        <!-- Resolution for base64 -->
+        <div style="display:flex;align-items:center;gap:4px;font-family:'IBM Plex Mono',monospace;font-size:0.75rem;color:var(--text3)">
+          <span>Quality:</span>
+          <select id="searchSelRes" style="font-family:'IBM Plex Mono',monospace;font-size:0.75rem;padding:3px 6px;border:1px solid var(--border2);border-radius:4px;background:var(--surface);color:var(--text2);outline:none">
+            <option value="orig">Original</option>
+            <option value="hd">HD (1280px)</option>
+            <option value="fhd">FHD (1920px)</option>
+          </select>
+        </div>
+        <button id="btnSelToB64" style="font-family:'IBM Plex Mono',monospace;font-size:0.8rem;padding:4px 10px;border-radius:4px;border:none;background:var(--accent);color:#fff;cursor:pointer;white-space:nowrap">⚡ → Base64</button>
+        <button id="btnSelToUrl" style="font-family:'IBM Plex Mono',monospace;font-size:0.8rem;padding:4px 10px;border-radius:4px;border:1px solid var(--accent2);background:transparent;color:var(--accent2);cursor:pointer;white-space:nowrap">🔗 → URL 교체</button>
+        <button id="btnSelClear" style="font-family:'IBM Plex Mono',monospace;font-size:0.8rem;padding:4px 10px;border-radius:4px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer;margin-left:auto">✕ 선택해제</button>
       </div>
-      <div class="b64-empty" id="searchPaneEmpty">
-        <strong style="font-size:1.4rem">🔍</strong>
-        Search results will appear here.<br>
-        <span style="font-size:0.8rem;color:var(--text3)">Use the Photo Search panel on the left.</span>
+      <div style="flex:1;overflow-y:auto;padding:10px;min-height:0">
+        <div class="search-status-bar" id="searchStatusPanel" style="margin-bottom:8px"></div>
+        <div class="search-results-wrap" id="searchResultsWrap" style="display:none">
+          <div class="search-results-grid" id="searchResultsGrid"></div>
+          <button class="search-load-more" id="searchLoadMore" style="margin:12px auto;display:none">＋ Load More</button>
+        </div>
+        <div class="b64-empty" id="searchPaneEmpty">
+          <strong style="font-size:1.4rem">🔍</strong>
+          Search results will appear here.<br>
+          <span style="font-size:0.8rem;color:var(--text3)">Use the Photo Search panel on the left.</span>
+        </div>
       </div>
     </div>
   </div>
@@ -3099,6 +3134,21 @@ async function fetchSource(src, kw, perPage) {
   return await res.json();
 }
 
+// ── Selected images set ──
+const selectedSearchItems = new Map(); // full url → item data
+
+function updateSearchSelBar() {
+  const bar = document.getElementById('searchSelBar');
+  const cnt = document.getElementById('searchSelCount');
+  const count = selectedSearchItems.size;
+  if (count > 0) {
+    bar.style.display = 'flex';
+    cnt.textContent = `${count}개 선택됨`;
+  } else {
+    bar.style.display = 'none';
+  }
+}
+
 function renderSearchResult(item) {
   const card = document.createElement('div');
   card.className = 'search-result-item' + (addedUrls.has(item.full) ? ' added' : '');
@@ -3118,47 +3168,87 @@ function renderSearchResult(item) {
   overlay.className = 'search-result-overlay';
   overlay.textContent = addedUrls.has(item.full) ? '✓' : '＋';
 
+  // Checkbox indicator
+  const chk = document.createElement('div');
+  chk.className = 'search-result-check';
+
   card.appendChild(img);
   card.appendChild(badge);
   card.appendChild(overlay);
+  card.appendChild(chk);
 
-  card.addEventListener('click', () => {
-    if (addedUrls.has(item.full)) return;
-    addedUrls.add(item.full);
-    card.classList.add('added');
-    overlay.textContent = '✓';
-    b64AddUrl(item.full);
+  card.addEventListener('click', (e) => {
+    // 선택 토글 (복수선택)
+    if (selectedSearchItems.has(item.full)) {
+      selectedSearchItems.delete(item.full);
+      card.classList.remove('selected');
+    } else {
+      selectedSearchItems.set(item.full, item);
+      card.classList.add('selected');
+    }
+    updateSearchSelBar();
   });
 
   searchResultsGrid.appendChild(card);
 }
+
+// ── 선택해제 버튼 ──
+document.getElementById('btnSelClear').addEventListener('click', () => {
+  selectedSearchItems.clear();
+  document.querySelectorAll('.search-result-item.selected').forEach(el => el.classList.remove('selected'));
+  updateSearchSelBar();
+});
+
+// ── → Base64 변환 버튼 ──
+document.getElementById('btnSelToB64').addEventListener('click', () => {
+  if (!selectedSearchItems.size) return;
+  const res = document.getElementById('searchSelRes').value;
+  // 해상도 설정 동기화
+  const radios = document.querySelectorAll('input[name="b64Res"]');
+  radios.forEach(r => { if (r.value === res) r.checked = true; });
+  // URL들을 Base64 변환 큐에 추가
+  selectedSearchItems.forEach((item) => {
+    b64AddUrl(item.full);
+  });
+  // Base64 탭으로 전환
+  switchRightTab('base64');
+  // 선택 초기화
+  selectedSearchItems.clear();
+  document.querySelectorAll('.search-result-item.selected').forEach(el => el.classList.remove('selected'));
+  updateSearchSelBar();
+});
+
+// ── → URL 교체 버튼 ──
+document.getElementById('btnSelToUrl').addEventListener('click', () => {
+  if (!selectedSearchItems.size) return;
+  const items = [...selectedSearchItems.values()];
+  // URL 교체 모달이 있으면 활용, 없으면 직접 처리
+  // 선택된 이미지 URL 목록을 클립보드에 복사 + 알림
+  const urls = items.map(i => i.full).join('\n');
+  navigator.clipboard.writeText(urls).then(() => {
+    setStatus(`✓ ${items.length}개 URL 복사됨 (클립보드)`, 'ok');
+  });
+  // JSON replace 모달이 열려있으면 첫번째 URL 자동 적용
+  const backdrop = document.getElementById('replaceModalBackdrop');
+  if (backdrop && backdrop.classList.contains('open')) {
+    const applyBtn = document.getElementById('replaceApplyBtn');
+    const previewThumb = document.getElementById('replacePreviewThumb');
+    const previewUrl = document.getElementById('replacePreviewUrl');
+    if (previewThumb && previewUrl && applyBtn) {
+      previewThumb.src = items[0].thumb;
+      previewUrl.textContent = items[0].full;
+      previewUrl.dataset.full = items[0].full;
+      applyBtn.disabled = false;
+    }
+  }
+});
 
 function setStatus(msg, type) {
   searchStatusPanel.textContent = msg;
   searchStatusPanel.className = 'search-status-bar' + (type ? ' ' + type : '');
 }
 
-// ── Quick search bar (always visible) ──
-const searchKeywordQuick = document.getElementById('searchKeywordQuick');
-searchKeywordQuick.addEventListener('keydown', e => {
-  if (e.key === 'Enter') {
-    const kw = searchKeywordQuick.value.trim();
-    if (!kw) return;
-    searchKeyword.value = kw;
-    // Open search body if closed
-    const body = document.getElementById('searchBody');
-    if (!body.classList.contains('open')) {
-      body.classList.add('open');
-      const chevron = document.getElementById('searchChevron');
-      if (chevron) chevron.classList.add('open');
-    }
-    if (_doSearchGlobal) _doSearchGlobal(true);
-  }
-});
-// sync quick input value when modal opens (via toggle bar click handler above)
-// note: duplicate listener removed — sync handled inside the main click handler
-
-// expose doSearch to outer scope for quick search bar
+// expose doSearch to outer scope
 _doSearchGlobal = doSearch;
 
 })(); // end PHOTO SEARCH IIFE
