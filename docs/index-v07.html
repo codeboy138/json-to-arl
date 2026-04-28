@@ -1,0 +1,3782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JSON → ARL Converter</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
+
+  :root {
+    --bg: #eef0f2;
+    --surface: #f5f6f7;
+    --surface2: #e8eaec;
+    --border: #d0d4d8;
+    --border2: #b8bdc3;
+    --accent: #0077cc;
+    --accent2: #2e8b3a;
+    --accent3: #cc5500;
+    --text: #1a2028;
+    --text2: #4a5560;
+    --text3: #8a9aa8;
+    --folder: #a06000;
+    --file: #0055aa;
+    --done: #1a7a2a;
+    --error: #cc2222;
+    --processing: #7744bb;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+    max-width: 100vw;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+    gap: 10px;
+    overflow: hidden;
+    min-width: 0;
+  }
+
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+    min-width: 0;
+  }
+
+  .logo {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    color: var(--accent);
+    white-space: nowrap;
+  }
+  .logo span { color: var(--text2); }
+
+  .header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  .btn {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875rem;
+    font-weight: 500;
+    padding: 7px 14px;
+    border-radius: 5px;
+    cursor: pointer;
+    border: none;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .btn-upload-files { background: var(--border2); color: var(--text); }
+  .btn-upload-folder { background: var(--border2); color: var(--folder); }
+  .btn-upload-files:hover { background: var(--border); }
+  .btn-upload-folder:hover { background: var(--border); }
+
+  .btn-convert {
+    background: var(--accent);
+    color: #f5f6f7;
+    font-weight: 600;
+    display: none;
+  }
+  .btn-convert:hover { background: #0066bb; }
+  .btn-convert:disabled { background: var(--border); color: var(--text3); cursor: not-allowed; }
+
+  .btn-dl-zip { background: transparent; color: var(--accent2); border: 1px solid var(--accent2); display: none; }
+  .btn-dl-zip:hover { background: var(--accent2); color: #f5f6f7; }
+
+  .btn-dl-folder { background: transparent; color: var(--accent3); border: 1px solid var(--accent3); display: none; }
+  .btn-dl-folder:hover { background: var(--accent3); color: #fff; }
+
+  .file-count {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875rem;
+    color: var(--text3);
+    white-space: nowrap;
+  }
+
+  /* ── MAIN LAYOUT ── */
+  .workspace {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
+    min-width: 0;
+  }
+
+  /* ── PANELS ── */
+  .panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-width: 0;
+  }
+
+  .panel + .panel { border-left: 1px solid var(--border); }
+
+  .panel-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+
+  .panel-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .panel-badge {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875rem;
+    padding: 2px 7px;
+    border-radius: 10px;
+    font-weight: 600;
+  }
+
+  .badge-before { background: #ddeeff; color: var(--accent); }
+  .badge-after  { background: #ddf5e0; color: var(--accent2); }
+
+  .panel-body {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 8px 0;
+    position: relative;
+    min-height: 0;
+  }
+
+  /* ── DROPZONE overlay ── */
+  .dropzone-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    pointer-events: none;
+    opacity: 1;
+    transition: opacity 0.2s;
+    z-index: 2;
+  }
+
+  .dropzone-overlay.hidden { opacity: 0; }
+
+  .drop-icon-big { font-size: 2.8rem; }
+  .drop-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875rem;
+    color: var(--text3);
+    text-align: center;
+    line-height: 1.8;
+  }
+  .drop-label strong { color: var(--text2); }
+
+  .workspace.drag-over .panel-left { border: 2px dashed var(--accent); }
+  .workspace.drag-over .dropzone-overlay { opacity: 1; }
+
+  /* ── TREE ── */
+  .tree-root { padding: 0 8px; }
+
+  .tree-node { user-select: none; }
+
+  .tree-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+    padding: 2px 0;
+    border-radius: 4px;
+    cursor: pointer;
+    position: relative;
+  }
+  .tree-row:hover { background: var(--surface2); }
+
+  .tree-indent { flex-shrink: 0; }
+
+  .tree-toggle {
+    width: 18px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text3);
+    font-size: 0.875rem;
+    padding-top: 3px;
+    transition: transform 0.15s;
+  }
+
+  .tree-icon {
+    width: 18px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.875rem;
+    padding-top: 1px;
+  }
+
+  .tree-name {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875rem;
+    padding: 2px 4px;
+    color: var(--text);
+    line-height: 1.4;
+    word-break: break-all;
+  }
+
+  .tree-name.folder-name { color: var(--folder); }
+  .tree-name.file-name   { color: var(--file); }
+
+  .tree-status {
+    margin-left: auto;
+    padding: 0 8px 0 4px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875rem;
+    white-space: nowrap;
+    padding-top: 3px;
+    flex-shrink: 0;
+  }
+  .status-waiting   { color: var(--text3); }
+  .status-processing{ color: var(--processing); }
+  .status-done      { color: var(--done); }
+  .status-error     { color: var(--error); }
+
+  .tree-children { display: none; }
+  .tree-children.open { display: block; }
+
+  .url-list {
+    display: none;
+    padding: 6px 0 6px 20px;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .url-list.open { display: flex; }
+
+  .url-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 8px;
+    background: var(--surface2);
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    cursor: default;
+    transition: border-color 0.15s;
+    flex-direction: column;
+  }
+  .url-item:hover { border-color: var(--border2); }
+  .url-item.expanded { border-color: var(--accent); }
+
+  .url-thumb {
+    width: 96px;
+    height: 96px;
+    object-fit: cover;
+    border-radius: 6px;
+    background: var(--border);
+    flex-shrink: 0;
+    border: 1px solid var(--border2);
+  }
+  .url-thumb.error-thumb {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.875rem;
+    color: var(--error);
+    background: #fce8e8;
+  }
+
+  .url-text {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875rem;
+    color: var(--text2);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+  }
+
+  .url-preview-img {
+    display: block;
+    width: 100%;
+    max-height: 300px;
+    object-fit: contain;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .url-expand-wrap { padding: 0 0 4px 0; display: block; }
+
+  /* ── RIGHT PANEL - converted tree ── */
+  .converted-file-name { color: var(--accent2) !important; }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #3a4858; }
+
+  /* ── DRAG HIGHLIGHT ── */
+  .drag-over-active {
+    outline: 2px dashed var(--accent) !important;
+    outline-offset: -4px;
+    background: #ddeeff !important;
+  }
+
+  /* ── RESIZER ── */
+  .resizer {
+    width: 4px;
+    background: var(--border);
+    cursor: col-resize;
+    flex-shrink: 0;
+    transition: background 0.15s;
+    z-index: 10;
+  }
+  .resizer:hover, .resizer.dragging { background: var(--accent); }
+
+  /* ── PROGRESS BAR ── */
+  .progress-bar-wrap {
+    height: 2px;
+    background: var(--border);
+    flex-shrink: 0;
+    display: none;
+  }
+  .progress-bar-wrap.visible { display: block; }
+  .progress-bar {
+    height: 100%;
+    background: var(--accent);
+    width: 0%;
+    transition: width 0.3s;
+  }
+
+  /* ── CONTEXT TAG ── */
+  .url-key {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875rem;
+    color: var(--text3);
+    background: var(--surface2);
+    border-radius: 3px;
+    padding: 1px 5px;
+    flex-shrink: 0;
+  }
+
+  .clear-btn {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875rem;
+    background: transparent;
+    color: var(--text3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 4px 10px;
+    cursor: pointer;
+  }
+  .clear-btn:hover { color: var(--error); border-color: var(--error); }
+
+  input[type=file] { display: none; }
+
+  /* ── PASTE PANEL ── */
+  .paste-panel {
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+  }
+
+  .paste-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 7px 12px;
+    cursor: pointer;
+    user-select: none;
+    gap: 8px;
+  }
+
+  .paste-header:hover { background: var(--surface2); }
+
+  .paste-header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .paste-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text2);
+    letter-spacing: 0.05em;
+  }
+
+  .paste-hint {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875rem;
+    color: var(--text3);
+  }
+
+  .paste-chevron {
+    font-size: 0.875rem;
+    color: var(--text3);
+    transition: transform 0.2s;
+    flex-shrink: 0;
+  }
+  .paste-chevron.open { transform: rotate(180deg); }
+
+  .paste-body {
+    display: none;
+    padding: 0 10px 10px 10px;
+    gap: 6px;
+    flex-direction: column;
+  }
+  .paste-body.open { display: flex; }
+
+  .paste-textarea {
+    width: 100%;
+    height: 120px;
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 5px;
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875rem;
+    padding: 8px 10px;
+    resize: vertical;
+    outline: none;
+    transition: border-color 0.15s;
+    line-height: 1.5;
+  }
+  .paste-textarea:focus { border-color: var(--accent); }
+  .paste-textarea.valid { border-color: var(--done); }
+  .paste-textarea.invalid { border-color: var(--error); }
+  .paste-textarea::placeholder { color: var(--text3); }
+
+  .paste-actions {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .btn-paste-add {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875rem;
+    font-weight: 600;
+    padding: 6px 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    border: none;
+    background: var(--accent);
+    color: #f5f6f7;
+    transition: background 0.15s;
+  }
+  .btn-paste-add:hover { background: #0066bb; }
+  .btn-paste-add:disabled { background: var(--border); color: var(--text3); cursor: not-allowed; }
+
+  .btn-paste-clipboard {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875rem;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    border: 1px solid var(--border2);
+    background: var(--surface2);
+    color: var(--text2);
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .btn-paste-clipboard:hover { background: var(--accent); color: #f5f6f7; border-color: var(--accent); }
+
+  .btn-paste-clear {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875rem;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text3);
+    transition: all 0.15s;
+  }
+  .btn-paste-clear:hover { color: var(--error); border-color: var(--error); }
+
+  .paste-status {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875rem;
+    margin-left: auto;
+  }
+  /* ── RIGHT PANEL SELECTION ── */
+  .right-action-bar {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 12px;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+    flex-wrap: wrap;
+  }
+  .right-action-bar.visible { display: flex; }
+
+  .sel-count {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875rem;
+    color: var(--text2);
+    margin-right: 4px;
+    white-space: nowrap;
+  }
+
+  .btn-sel-zip {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875rem;
+    font-weight: 500;
+    padding: 5px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    border: 1px solid var(--accent2);
+    background: transparent;
+    color: var(--accent2);
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .btn-sel-zip:hover { background: var(--accent2); color: #f5f6f7; }
+
+  .btn-sel-flatzip {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875rem;
+    font-weight: 500;
+    padding: 5px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    border: 1px solid var(--folder);
+    background: transparent;
+    color: var(--folder);
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .btn-sel-flatzip:hover { background: var(--folder); color: #fff; }
+
+  .btn-sel-folder {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875rem;
+    font-weight: 500;
+    padding: 5px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    border: 1px solid var(--accent3);
+    background: transparent;
+    color: var(--accent3);
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .btn-sel-folder:hover { background: var(--accent3); color: #fff; }
+
+  .btn-sel-clear {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875rem;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text3);
+    transition: all 0.15s;
+    margin-left: auto;
+  }
+  .btn-sel-clear:hover { color: var(--error); border-color: var(--error); }
+
+  /* ── AUTO-EXPAND TOGGLE ── */
+  .toggle-switch {
+    width: 34px;
+    height: 18px;
+    background: var(--border2);
+    border-radius: 9px;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.2s;
+    flex-shrink: 0;
+  }
+  .toggle-switch.on { background: var(--accent); }
+  .toggle-thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--text2);
+    transition: transform 0.2s, background 0.2s;
+  }
+  .toggle-switch.on .toggle-thumb {
+    transform: translateX(16px);
+    background: #ffffff;
+  }
+
+  /* Checkboxes in right tree */
+  .tree-check {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    accent-color: var(--accent);
+    cursor: pointer;
+    margin-right: 2px;
+    margin-top: 2px;
+  }
+
+  .tree-row.selected { background: #ddeeff; }
+
+  /* ── MODE RADIO BUTTONS ── */
+  .mode-switcher {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 3px;
+    flex-shrink: 0;
+  }
+  .mode-radio {
+    display: none;
+  }
+  .mode-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.775rem;
+    font-weight: 500;
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    color: var(--text2);
+    transition: all 0.15s;
+    white-space: nowrap;
+    user-select: none;
+  }
+  .mode-label:hover { color: var(--text); background: var(--border); }
+  .mode-radio:checked + .mode-label {
+    background: var(--accent);
+    color: #f5f6f7;
+  }
+
+  /* ── BASE64 MODE PANEL ── */
+  .b64-workspace {
+    display: none;
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
+    min-width: 0;
+  }
+  .b64-workspace.active { display: flex; }
+
+  .b64-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-width: 0;
+  }
+  .b64-panel + .b64-panel { border-left: 1px solid var(--border); }
+
+  .b64-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 0;
+  }
+
+  .b64-input-row {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+  }
+
+  .b64-url-input {
+    flex: 1;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875rem;
+    padding: 8px 12px;
+    border: 1px solid var(--border2);
+    border-radius: 5px;
+    background: var(--surface);
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .b64-url-input:focus { border-color: var(--accent); }
+  .b64-url-input::placeholder { color: var(--text3); }
+  .b64-url-input.valid { border-color: var(--done); }
+  .b64-url-input.error { border-color: var(--error); }
+
+  .btn-b64-add {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875rem;
+    font-weight: 600;
+    padding: 8px 14px;
+    border-radius: 5px;
+    border: none;
+    background: var(--accent);
+    color: #f5f6f7;
+    cursor: pointer;
+    transition: background 0.15s;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .btn-b64-add:hover { background: #0066bb; }
+
+  .btn-b64-clear-all {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875rem;
+    padding: 8px 12px;
+    border-radius: 5px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text3);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .btn-b64-clear-all:hover { color: var(--error); border-color: var(--error); }
+
+  .b64-drop-zone {
+    border: 2px dashed var(--border2);
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875rem;
+    color: var(--text3);
+    transition: all 0.15s;
+    cursor: default;
+  }
+  .b64-drop-zone.drag-over {
+    border-color: var(--accent);
+    background: #ddeeff;
+    color: var(--accent);
+  }
+
+  .b64-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .b64-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    transition: border-color 0.15s;
+  }
+  .b64-item:hover { border-color: var(--border2); }
+
+  .b64-item-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .b64-item-header:hover { background: var(--surface2); }
+
+  .b64-thumb-small {
+    width: 40px;
+    height: 40px;
+    object-fit: cover;
+    border-radius: 4px;
+    border: 1px solid var(--border2);
+    flex-shrink: 0;
+    background: var(--border);
+  }
+
+  .b64-item-url {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.8rem;
+    color: var(--text2);
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .b64-status-badge {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    border-radius: 10px;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  .b64-status-badge.pending { background: var(--surface2); color: var(--text3); }
+  .b64-status-badge.loading { background: #ede5ff; color: var(--processing); }
+  .b64-status-badge.done { background: #ddf5e0; color: var(--done); }
+  .b64-status-badge.error { background: #fce8e8; color: var(--error); }
+
+  .b64-remove-btn {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875rem;
+    padding: 2px 7px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text3);
+    cursor: pointer;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .b64-remove-btn:hover { color: var(--error); border-color: var(--error); }
+
+  .b64-item-body {
+    display: none;
+    border-top: 1px solid var(--border);
+  }
+  .b64-item-body.open { display: block; }
+
+  .b64-preview-img {
+    display: block;
+    width: 100%;
+    max-height: 220px;
+    object-fit: contain;
+    background: var(--surface2);
+  }
+
+  .b64-result-wrap {
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .b64-result-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .b64-result-box {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--text2);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 8px 10px;
+    word-break: break-all;
+    max-height: 120px;
+    overflow-y: auto;
+    line-height: 1.5;
+    white-space: pre-wrap;
+  }
+
+  .b64-copy-btn {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875rem;
+    padding: 5px 12px;
+    border-radius: 4px;
+    border: 1px solid var(--accent);
+    background: transparent;
+    color: var(--accent);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+    align-self: flex-start;
+  }
+  .b64-copy-btn:hover { background: var(--accent); color: #f5f6f7; }
+  .b64-copy-btn.copied { background: var(--done); border-color: var(--done); color: #f5f6f7; }
+
+  .b64-info-bar {
+    display: flex;
+    gap: 12px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--text3);
+    padding: 6px 0 0 0;
+    flex-wrap: wrap;
+  }
+  .b64-info-bar span { color: var(--text2); }
+
+  .b64-empty {
+    text-align: center;
+    padding: 40px 20px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875rem;
+    color: var(--text3);
+    line-height: 1.8;
+  }
+  .b64-empty strong { color: var(--text2); display: block; margin-bottom: 8px; font-size: 1.5rem; }
+
+  .b64-convert-btn {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875rem;
+    font-weight: 600;
+    padding: 7px 14px;
+    border-radius: 5px;
+    border: none;
+    background: var(--accent);
+    color: #f5f6f7;
+    cursor: pointer;
+    transition: background 0.15s;
+    display: none;
+    white-space: nowrap;
+  }
+  .b64-convert-btn:hover { background: #0066bb; }
+  .b64-convert-btn:disabled { background: var(--border); color: var(--text3); cursor: not-allowed; }
+  /* ── PHOTO SEARCH PANEL ── */
+  .search-panel {
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+  .search-toggle-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .search-toggle-bar:hover { background: var(--surface2); }
+  .search-toggle-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text2);
+  }
+  .search-toggle-hint {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.8rem;
+    color: var(--text3);
+  }
+  .search-chevron {
+    font-size: 0.875rem;
+    color: var(--text3);
+    transition: transform 0.2s;
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+  .search-chevron.open { transform: rotate(180deg); }
+
+  .search-body {
+    display: none;
+    flex-direction: column;
+    gap: 10px;
+    padding: 0 14px 14px 14px;
+  }
+  .search-body.open { display: flex; }
+
+  /* API key settings row */
+  .api-keys-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .api-key-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+    min-width: 160px;
+  }
+  .api-key-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--text3);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .api-key-label span {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 3px;
+    vertical-align: middle;
+  }
+  .api-key-unsplash { background: #111; }
+  .api-key-pexels   { background: #07a081; }
+  .api-key-pixabay  { background: #1d8c2e; }
+
+  .api-key-input {
+    flex: 1;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.75rem;
+    padding: 5px 8px;
+    border: 1px solid var(--border2);
+    border-radius: 4px;
+    background: var(--surface);
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s;
+    min-width: 0;
+  }
+  .api-key-input:focus { border-color: var(--accent); }
+  .api-key-input.has-key { border-color: var(--done); }
+  .api-key-input::placeholder { color: var(--text3); }
+
+  /* Source checkboxes */
+  .search-sources-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .search-src-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--text3);
+    flex-shrink: 0;
+  }
+  .src-check-wrap {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .src-check-wrap input[type=checkbox] {
+    width: 14px; height: 14px;
+    accent-color: var(--accent);
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+  .src-chip {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.78rem;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 10px;
+    white-space: nowrap;
+  }
+  .src-chip.unsplash { background: #e8e8e8; color: #111; }
+  .src-chip.pexels   { background: #d0f4ec; color: #07a081; }
+  .src-chip.pixabay  { background: #d4f0d8; color: #1d8c2e; }
+  .src-chip.disabled { opacity: 0.4; }
+
+  /* Search input row */
+  .search-input-row {
+    display: flex;
+    gap: 8px;
+  }
+  .search-keyword-input {
+    flex: 1;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875rem;
+    padding: 7px 12px;
+    border: 1px solid var(--border2);
+    border-radius: 5px;
+    background: var(--surface);
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .search-keyword-input:focus { border-color: var(--accent); }
+  .search-keyword-input::placeholder { color: var(--text3); }
+
+  .btn-search {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875rem;
+    font-weight: 600;
+    padding: 7px 16px;
+    border-radius: 5px;
+    border: none;
+    background: var(--accent);
+    color: #f5f6f7;
+    cursor: pointer;
+    transition: background 0.15s;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .btn-search:hover { background: #0066bb; }
+  .btn-search:disabled { background: var(--border); color: var(--text3); cursor: not-allowed; }
+
+  /* Per-page count */
+  .search-per-page {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.75rem;
+    padding: 5px 8px;
+    border: 1px solid var(--border2);
+    border-radius: 4px;
+    background: var(--surface);
+    color: var(--text2);
+    outline: none;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  /* Results area — fullscreen modal */
+  .search-modal-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(10,15,20,0.72);
+    z-index: 1000;
+    align-items: stretch;
+    justify-content: stretch;
+  }
+  .search-modal-backdrop.open { display: flex; }
+
+  .search-modal {
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .search-modal-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+
+  .search-modal-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text2);
+  }
+
+  .search-modal-close {
+    margin-left: auto;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875rem;
+    padding: 5px 12px;
+    border-radius: 4px;
+    border: 1px solid var(--border2);
+    background: transparent;
+    color: var(--text2);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .search-modal-close:hover { background: var(--error); color: #fff; border-color: var(--error); }
+
+  .search-modal-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+
+  .search-modal-body {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 12px 16px;
+    min-height: 0;
+  }
+
+  .search-results-wrap {
+    /* no max-height — modal body scrolls */
+  }
+  .search-results-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 8px;
+  }
+  .search-result-item {
+    position: relative;
+    aspect-ratio: 1;
+    border-radius: 5px;
+    overflow: hidden;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: border-color 0.15s, transform 0.1s;
+    background: var(--border);
+  }
+  .search-result-item:hover { border-color: var(--accent); transform: scale(1.02); }
+  .search-result-item.selected { border-color: var(--accent); }
+  .search-result-item.added { border-color: var(--done); }
+
+  .search-result-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .search-result-source {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.6rem;
+    font-weight: 600;
+    padding: 1px 5px;
+    border-radius: 3px;
+    pointer-events: none;
+  }
+  .src-badge-unsplash { background: rgba(0,0,0,0.7); color: #fff; }
+  .src-badge-pexels   { background: rgba(7,160,129,0.85); color: #fff; }
+  .src-badge-pixabay  { background: rgba(29,140,46,0.85); color: #fff; }
+
+  .search-result-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,119,204,0.55);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+  }
+  .search-result-item:hover .search-result-overlay { display: flex; }
+  .search-result-item.added .search-result-overlay { display: flex; background: rgba(26,122,42,0.55); }
+
+  .search-status-bar {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.8rem;
+    color: var(--text3);
+    padding: 4px 0;
+    min-height: 20px;
+  }
+  .search-status-bar.err { color: var(--error); }
+  .search-status-bar.ok  { color: var(--done); }
+
+  .search-load-more {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.8rem;
+    padding: 6px 14px;
+    border-radius: 4px;
+    border: 1px solid var(--border2);
+    background: transparent;
+    color: var(--text2);
+    cursor: pointer;
+    transition: all 0.15s;
+    display: none;
+    margin-top: 4px;
+  }
+  .search-load-more:hover { background: var(--accent); color: #f5f6f7; border-color: var(--accent); }
+
+  /* ── FILENAME EDIT MODAL ── */
+  .fname-modal-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(10,15,20,0.55);
+    z-index: 2000;
+    align-items: center;
+    justify-content: center;
+  }
+  .fname-modal-backdrop.open { display: flex; }
+  .fname-modal {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    padding: 20px 24px;
+    min-width: 360px;
+    max-width: 520px;
+    width: 90vw;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+  }
+  .fname-modal-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .fname-modal input {
+    width: 100%;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875rem;
+    padding: 8px 12px;
+    border: 1px solid var(--border2);
+    border-radius: 5px;
+    background: var(--bg);
+    color: var(--text);
+    outline: none;
+  }
+  .fname-modal input:focus { border-color: var(--accent); }
+  .fname-modal-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+  .fname-modal-actions button {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875rem;
+    padding: 6px 16px;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .fname-btn-ok { background: var(--accent); color: #f5f6f7; }
+  .fname-btn-ok:hover { background: #0066bb; }
+  .fname-btn-cancel { background: var(--surface2); color: var(--text2); border: 1px solid var(--border) !important; }
+  .fname-btn-cancel:hover { background: var(--border); }
+
+  /* ── RESOLUTION SELECTOR ── */
+  .res-selector {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 3px 4px 3px 8px;
+    flex-shrink: 0;
+  }
+  .res-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--text3);
+    white-space: nowrap;
+  }
+  .res-radio { display: none; }
+  .res-btn {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 3px 9px;
+    border-radius: 3px;
+    cursor: pointer;
+    color: var(--text2);
+    transition: all 0.12s;
+    user-select: none;
+    white-space: nowrap;
+  }
+  .res-btn:hover { background: var(--border); }
+  .res-radio:checked + .res-btn { background: var(--accent); color: #f5f6f7; }
+
+  /* ── URL REPLACE BUTTON in url-item ── */
+  .url-replace-btn {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 3px 10px;
+    border-radius: 4px;
+    border: 1px solid var(--accent);
+    background: transparent;
+    color: var(--accent);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .url-replace-btn:hover { background: var(--accent); color: #f5f6f7; }
+  .url-replace-btn.replacing { border-color: var(--processing); color: var(--processing); }
+  .url-replace-btn.replaced { border-color: var(--done); color: var(--done); background: #ddf5e0; }
+
+  /* ── URL REPLACE MODAL ── */
+  .replace-modal-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(10,15,20,0.72);
+    z-index: 3000;
+    align-items: center;
+    justify-content: center;
+  }
+  .replace-modal-backdrop.open { display: flex; }
+  .replace-modal {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    width: min(900px, 96vw);
+    max-height: 88vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.28);
+    overflow: hidden;
+  }
+  .replace-modal-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+  .replace-modal-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text);
+    flex: 1;
+  }
+  .replace-modal-close {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875rem;
+    padding: 4px 10px;
+    border-radius: 4px;
+    border: 1px solid var(--border2);
+    background: transparent;
+    color: var(--text2);
+    cursor: pointer;
+  }
+  .replace-modal-close:hover { background: var(--error); color: #fff; border-color: var(--error); }
+  .replace-modal-search-bar {
+    display: flex;
+    gap: 8px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+    flex-shrink: 0;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .replace-modal-kw {
+    flex: 1;
+    min-width: 160px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875rem;
+    padding: 7px 12px;
+    border: 1px solid var(--border2);
+    border-radius: 5px;
+    background: var(--surface);
+    color: var(--text);
+    outline: none;
+  }
+  .replace-modal-kw:focus { border-color: var(--accent); }
+  .replace-modal-kw::placeholder { color: var(--text3); }
+  .replace-modal-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 14px;
+    min-height: 0;
+  }
+  .replace-results-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 8px;
+  }
+  .replace-result-item {
+    position: relative;
+    border-radius: 6px;
+    overflow: hidden;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: border-color 0.15s;
+    aspect-ratio: 1;
+    background: var(--surface2);
+  }
+  .replace-result-item:hover { border-color: var(--accent); }
+  .replace-result-item.selected { border-color: var(--done); }
+  .replace-result-img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .replace-result-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,119,204,0.5);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+  }
+  .replace-result-item:hover .replace-result-overlay { display: flex; }
+  .replace-result-item.selected .replace-result-overlay { display: flex; background: rgba(26,122,42,0.55); }
+  .replace-modal-footer {
+    padding: 10px 14px;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  .replace-selected-preview {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+  }
+  .replace-preview-thumb {
+    width: 40px; height: 40px;
+    object-fit: cover;
+    border-radius: 4px;
+    border: 1px solid var(--border2);
+    flex-shrink: 0;
+    display: none;
+  }
+  .replace-preview-url {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--text2);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+  }
+  .replace-status-bar {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.8rem;
+    color: var(--text3);
+    min-height: 18px;
+  }
+  .replace-status-bar.ok  { color: var(--done); }
+  .replace-status-bar.err { color: var(--error); }
+  .btn-replace-apply {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875rem;
+    font-weight: 600;
+    padding: 7px 16px;
+    border-radius: 5px;
+    border: none;
+    background: var(--done);
+    color: #f5f6f7;
+    cursor: pointer;
+    transition: background 0.15s;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .btn-replace-apply:hover { background: #1a6a28; }
+  .btn-replace-apply:disabled { background: var(--border); color: var(--text3); cursor: not-allowed; }
+  .replace-load-more {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.8rem;
+    padding: 6px 14px;
+    border-radius: 4px;
+    border: 1px solid var(--border2);
+    background: transparent;
+    color: var(--text2);
+    cursor: pointer;
+    transition: all 0.15s;
+    display: none;
+    margin-top: 8px;
+  }
+  .replace-load-more:hover { background: var(--accent); color: #f5f6f7; border-color: var(--accent); }
+</style>
+</head>
+<body>
+
+<!-- HIDDEN FILE INPUTS -->
+<input type="file" id="inputFiles" accept=".json" multiple>
+<input type="file" id="inputFolder" accept=".json" webkitdirectory multiple>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-left">
+    <div class="logo">JSON<span> → </span>ARL</div>
+    <!-- MODE SWITCHER -->
+    <div class="mode-switcher">
+      <input type="radio" class="mode-radio" name="appMode" id="modeJsonArl" value="json-arl" checked>
+      <label class="mode-label" for="modeJsonArl">⚙ JSON → ARL</label>
+      <input type="radio" class="mode-radio" name="appMode" id="modeB64" value="b64">
+      <label class="mode-label" for="modeB64">🖼 Image → Base64</label>
+    </div>
+    <div class="file-count" id="fileCount">No files</div>
+  </div>
+  <div class="header-actions">
+    <button class="btn btn-upload-files" onclick="document.getElementById('inputFiles').click()">📄 Select Files</button>
+    <button class="btn btn-upload-folder" onclick="document.getElementById('inputFolder').click()">📁 Select Folder</button>
+    <button class="btn btn-convert" id="convertBtn">⚡ Convert</button>
+    <button class="btn btn-dl-zip" id="dlZipBtn">📦 Download ZIP</button>
+    <button class="btn btn-dl-folder" id="dlFolderBtn">🗂 Download as Folder</button>
+    <button class="clear-btn" id="clearBtn" style="display:none" onclick="clearAll()">✕ Clear</button>
+  </div>
+</div>
+
+<!-- PROGRESS -->
+<div class="progress-bar-wrap" id="progressWrap">
+  <div class="progress-bar" id="progressBar"></div>
+</div>
+
+<!-- WORKSPACE -->
+<div class="workspace" id="workspace">
+
+  <!-- LEFT PANEL -->
+  <div class="panel panel-left" id="panelLeft">
+    <div class="panel-header">
+      <div class="panel-title">Before</div>
+      <div class="panel-badge badge-before">JSON</div>
+      <!-- Resolution for JSON→ARL URL auto-replace -->
+      <div class="res-selector" id="arlResSelector" title="Image URL resolution for JSON→ARL auto-convert">
+        <span class="res-label">Resolution:</span>
+        <input type="radio" class="res-radio" name="arlRes" id="arlResOrig" value="orig" checked>
+        <label class="res-btn" for="arlResOrig">Original</label>
+        <input type="radio" class="res-radio" name="arlRes" id="arlResHD" value="hd">
+        <label class="res-btn" for="arlResHD">HD</label>
+        <input type="radio" class="res-radio" name="arlRes" id="arlResFHD" value="fhd">
+        <label class="res-btn" for="arlResFHD">FHD</label>
+      </div>
+      <label id="autoExpandLabel" style="display:none;align-items:center;gap:6px;margin-left:auto;cursor:pointer;user-select:none;font-family:'IBM Plex Mono',monospace;font-size:0.75rem;color:var(--text3)">
+        <span>Auto-expand</span>
+        <div class="toggle-switch" id="autoExpandToggle" onclick="toggleAutoExpand()">
+          <div class="toggle-thumb"></div>
+        </div>
+      </label>
+      <button id="expandAllBtn" class="clear-btn" style="display:none;color:var(--accent);border-color:var(--accent)" onclick="expandAll()">⊟ Collapse All</button>
+    </div>
+    <div class="panel-body" id="leftBody">
+      <div class="dropzone-overlay" id="dropOverlay">
+        <div class="drop-icon-big">📂</div>
+        <div class="drop-label">
+          <strong>Drag files here</strong> or<br>use the buttons above<br><span style="color:var(--text3);font-size: 0.875rem">.json files &amp; folders · Paste JSON in the panel below</span>
+        </div>
+      </div>
+      <div class="tree-root" id="leftTree"></div>
+    </div>
+
+    <!-- PASTE PANEL -->
+    <div class="paste-panel" id="pastePanel">
+      <div class="paste-header" id="pasteToggle">
+        <div class="paste-header-left">
+          <span style="font-size: 0.875rem">📋</span>
+          <span class="paste-title">Paste JSON</span>
+          <span class="paste-hint">Paste JSON code to add as a file</span>
+        </div>
+        <span class="paste-chevron" id="pasteChevron">▼</span>
+      </div>
+      <div class="paste-body" id="pasteBody">
+        <textarea
+          class="paste-textarea"
+          id="pasteTextarea"
+          placeholder='{ "key": "value", ... }  ← Paste JSON code here (Ctrl+V)'
+          spellcheck="false"
+        ></textarea>
+        <div class="paste-actions">
+          <button class="btn-paste-add" id="btnPasteAdd" disabled>＋ Add as File</button>
+          <button class="btn-paste-clear" id="btnPasteClear">Clear</button>
+          <button class="btn-paste-clipboard" id="btnPasteClipboard" title="Paste from clipboard">📋 Paste</button>
+          <span class="paste-status" id="pasteStatus"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESIZER -->
+  <div class="resizer" id="resizer"></div>
+
+  <!-- RIGHT PANEL -->
+  <div class="panel panel-right" id="panelRight">
+    <div class="panel-header">
+      <div class="panel-title">After</div>
+      <div class="panel-badge badge-after">ARL</div>
+      <label style="display:flex;align-items:center;gap:6px;margin-left:auto;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:0.875rem;color:var(--text3);user-select:none">
+        <input type="checkbox" id="checkAll" style="accent-color:var(--accent);width:14px;height:14px"> Select All
+      </label>
+    </div>
+    <div class="panel-body" id="rightBody">
+      <div class="dropzone-overlay hidden" id="rightOverlay">
+        <div class="drop-icon-big" style="opacity:0.3">🗂</div>
+        <div class="drop-label" style="color:var(--text3)">Converted results will appear here</div>
+      </div>
+      <div class="tree-root" id="rightTree"></div>
+    </div>
+    <div class="right-action-bar" id="rightActionBar">
+      <span class="sel-count" id="selCount">0 selected</span>
+      <button class="btn-sel-zip" id="btnSelZip">📦 ZIP Selected</button>
+      <button class="btn-sel-flatzip" id="btnSelFlatZip">📁 Download as Folder</button>
+      <button class="btn-sel-folder" id="btnSelFolder">🗂 Save Selected to Folder</button>
+      <button class="btn-sel-clear" id="btnSelClear">✕ Deselect All</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- BASE64 WORKSPACE -->
+<div class="b64-workspace" id="b64Workspace">
+
+  <!-- LEFT: INPUT -->
+  <div class="b64-panel">
+    <div class="panel-header">
+      <div class="panel-title">Input</div>
+      <div class="panel-badge badge-before">Image URL</div>
+      <!-- Resolution selector -->
+      <div class="res-selector" id="b64ResSelector" title="Output resolution (canvas resize)">
+        <span class="res-label">Resolution:</span>
+        <input type="radio" class="res-radio" name="b64Res" id="resOrig" value="orig" checked>
+        <label class="res-btn" for="resOrig">Original</label>
+        <input type="radio" class="res-radio" name="b64Res" id="resHD" value="hd">
+        <label class="res-btn" for="resHD">HD</label>
+        <input type="radio" class="res-radio" name="b64Res" id="resFHD" value="fhd">
+        <label class="res-btn" for="resFHD">FHD</label>
+      </div>
+      <button class="b64-convert-btn" id="b64ConvertBtn" style="margin-left:auto">⚡ Convert All</button>
+      <button class="clear-btn" id="b64ClearAllBtn" style="display:none;margin-left:4px">✕ Clear All</button>
+    </div>
+
+    <!-- PHOTO SEARCH PANEL -->
+    <div class="search-panel" id="searchPanel">
+      <!-- search panel: toggle row + quick input side by side -->
+      <div style="display:flex;align-items:center;border-bottom:1px solid var(--border)">
+        <div class="search-toggle-bar" id="searchToggleBar" style="flex:0 0 auto;border-bottom:none">
+          <span style="font-size:0.875rem">🔍</span>
+          <span class="search-toggle-title">Photo Search</span>
+          <span class="search-toggle-hint">Unsplash · Pexels · Pixabay</span>
+          <span class="search-chevron" id="searchChevron">▼</span>
+        </div>
+        <!-- Always-visible quick search input (outside toggle click zone) -->
+        <input class="search-keyword-input" id="searchKeywordQuick" type="text"
+          placeholder="Quick search — type & press Enter..."
+          style="flex:1;margin:6px 10px 6px 0;font-size:0.8rem;padding:4px 10px;min-width:0">
+      </div>
+      <div class="search-body" id="searchBody">
+
+        <!-- API keys are stored as Cloudflare Worker Secrets — no input needed -->
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:0.78rem;color:var(--done);padding:4px 0;">
+          🔐 API keys are secured in Cloudflare Worker Secrets
+        </div>
+
+        <!-- Source toggles -->
+        <div class="search-sources-row">
+          <span class="search-src-label">Search in:</span>
+          <label class="src-check-wrap">
+            <input type="checkbox" id="srcUnsplash" checked>
+            <span class="src-chip unsplash" id="chipUnsplash">Unsplash</span>
+          </label>
+          <label class="src-check-wrap">
+            <input type="checkbox" id="srcPexels" checked>
+            <span class="src-chip pexels" id="chipPexels">Pexels</span>
+          </label>
+          <label class="src-check-wrap">
+            <input type="checkbox" id="srcPixabay" checked>
+            <span class="src-chip pixabay" id="chipPixabay">Pixabay</span>
+          </label>
+          <select class="search-per-page" id="searchPerPage">
+            <option value="9">9 per source</option>
+            <option value="15" selected>15 per source</option>
+            <option value="30">30 per source</option>
+          </select>
+        </div>
+
+        <!-- Search input -->
+        <div class="search-input-row">
+          <input class="search-keyword-input" id="searchKeyword" type="text" placeholder="e.g. mountain, city, food ...">
+          <button class="btn-search" id="btnSearch">🔍 Search</button>
+        </div>
+
+        <!-- Status -->
+        <div class="search-status-bar" id="searchStatus"></div>
+
+      </div>
+    </div>
+
+    <div class="b64-body" id="b64Body">
+      <div class="b64-input-row">
+        <input type="text" class="b64-url-input" id="b64UrlInput" placeholder="https://example.com/image.png  ← Paste image URL here">
+        <button class="btn-b64-add" id="b64AddBtn">＋ Add</button>
+      </div>
+      <div class="b64-drop-zone" id="b64DropZone">
+        📎 Drag &amp; drop image files here, or paste URLs above
+      </div>
+      <div class="b64-list" id="b64List">
+        <div class="b64-empty" id="b64Empty">
+          <strong>🖼</strong>
+          Add image URLs above<br>or drag image files here<br>
+          <span style="font-size:0.8rem;color:var(--text3)">PNG, JPG, GIF, WebP, SVG supported</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESIZER B64 -->
+  <div class="resizer" id="b64Resizer"></div>
+
+  <!-- RIGHT: OUTPUT -->
+  <div class="b64-panel" id="b64RightPanel">
+    <div class="panel-header">
+      <div class="panel-title">Output</div>
+      <div class="panel-badge badge-after">Base64</div>
+      <button class="btn-paste-clipboard" id="b64CopyAllBtn" style="margin-left:auto;display:none">📋 Copy All</button>
+    </div>
+    <div class="b64-body" id="b64RightBody">
+      <div class="b64-empty" id="b64RightEmpty">
+        <strong style="font-size:1.2rem">⏳</strong>
+        Converted Base64 results<br>will appear here
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- SEARCH FULLSCREEN MODAL -->
+<div class="search-modal-backdrop" id="searchModalBackdrop">
+  <div class="search-modal">
+    <div class="search-modal-header">
+      <span style="font-size:1rem">🔍</span>
+      <span class="search-modal-title">Photo Search — <span id="searchModalKw" style="color:var(--accent)"></span></span>
+      <button class="search-modal-close" id="searchModalClose">✕ Close</button>
+    </div>
+    <div class="search-modal-controls" id="searchModalControls">
+      <!-- source toggles + per-page + search input re-rendered here by JS -->
+    </div>
+    <div class="search-modal-body">
+      <div class="search-status-bar" id="searchStatusModal"></div>
+      <div class="search-results-wrap" id="searchResultsWrap" style="display:none">
+        <div class="search-results-grid" id="searchResultsGrid"></div>
+        <button class="search-load-more" id="searchLoadMore">＋ Load More</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FILENAME EDIT MODAL -->
+<div class="fname-modal-backdrop" id="fnameModalBackdrop">
+  <div class="fname-modal">
+    <div class="fname-modal-title">💾 Save as...</div>
+    <input type="text" id="fnameInput" spellcheck="false">
+    <div class="fname-modal-actions">
+      <button class="fname-btn-cancel" id="fnameCancelBtn">Cancel</button>
+      <button class="fname-btn-ok" id="fnameOkBtn">⬇ Download</button>
+    </div>
+  </div>
+</div>
+
+<!-- URL REPLACE MODAL -->
+<div class="replace-modal-backdrop" id="replaceModalBackdrop">
+  <div class="replace-modal">
+    <div class="replace-modal-header">
+      <span style="font-size:1rem">🔄</span>
+      <div class="replace-modal-title">Replace URL — <span id="replaceTargetKey" style="color:var(--text3);font-size:0.8rem"></span></div>
+      <button class="replace-modal-close" id="replaceModalClose">✕</button>
+    </div>
+    <div class="replace-modal-search-bar">
+      <input class="replace-modal-kw" id="replaceSearchKw" type="text" placeholder="Type keyword & press Enter...">
+      <select class="search-per-page" id="replacePerPage">
+        <option value="9">9 images</option>
+        <option value="15" selected>15 images</option>
+        <option value="30">30 images</option>
+      </select>
+      <button class="btn-search" id="replaceSearchBtn" style="padding:6px 14px">🔍 Search</button>
+      <div class="replace-status-bar" id="replaceStatus"></div>
+    </div>
+    <div class="replace-modal-body">
+      <div class="replace-results-grid" id="replaceResultsGrid"></div>
+      <button class="replace-load-more" id="replaceLoadMore">＋ Load More</button>
+    </div>
+    <div class="replace-modal-footer">
+      <div class="replace-selected-preview">
+        <img class="replace-preview-thumb" id="replacePreviewThumb" alt="">
+        <div class="replace-preview-url" id="replacePreviewUrl">Click an image to select</div>
+      </div>
+      <button class="btn-replace-apply" id="replaceApplyBtn" disabled>✓ Apply This URL</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────
+const WORKER_URL = 'https://json-to-arl.cwicwi2016.workers.dev/convert';
+const SEARCH_WORKER_URL = 'https://json-to-arl.cwicwi2016.workers.dev/search';
+
+// fileMap: Map<id, { file, path (array), relativePath (string) }>
+let fileMap = new Map();
+let idCounter = 0;
+// results: Map<id, { data } | { error }>
+let results = new Map();
+// selectedIds: Set of file ids selected in right panel
+let selectedIds = new Set();
+
+// ─────────────────────────────────────────
+// ELEMENTS
+// ─────────────────────────────────────────
+const convertBtn   = document.getElementById('convertBtn');
+const dlZipBtn     = document.getElementById('dlZipBtn');
+const dlFolderBtn  = document.getElementById('dlFolderBtn');
+const clearBtnEl   = document.getElementById('clearBtn');
+const leftTree     = document.getElementById('leftTree');
+const rightTree    = document.getElementById('rightTree');
+const fileCountEl  = document.getElementById('fileCount');
+const dropOverlay  = document.getElementById('dropOverlay');
+const rightOverlay = document.getElementById('rightOverlay');
+const progressWrap = document.getElementById('progressWrap');
+const progressBar  = document.getElementById('progressBar');
+const checkAllEl   = document.getElementById('checkAll');
+const rightActionBar = document.getElementById('rightActionBar');
+const selCountEl   = document.getElementById('selCount');
+const btnSelZip    = document.getElementById('btnSelZip');
+const btnSelFolder = document.getElementById('btnSelFolder');
+const btnSelClear  = document.getElementById('btnSelClear');
+
+// ── Selection helpers ──
+function updateSelectionUI() {
+  const count = selectedIds.size;
+  rightActionBar.classList.toggle('visible', count > 0);
+  selCountEl.textContent = `${count} selected`;
+  // Sync checkAll state
+  const allSuccessIds = [...results.entries()].filter(([,r]) => !r.error).map(([id]) => id);
+  checkAllEl.indeterminate = count > 0 && count < allSuccessIds.length;
+  checkAllEl.checked = allSuccessIds.length > 0 && count === allSuccessIds.length;
+}
+
+function collectIdsFromNode(node) {
+  // Recursively collect all successful file ids under a node
+  const ids = [];
+  function walk(n) {
+    if (n.type === 'file') {
+      const r = results.get(n.id);
+      if (r && !r.error) ids.push(n.id);
+    } else if (n.children) {
+      n.children.forEach(walk);
+    }
+  }
+  walk(node);
+  return ids;
+}
+
+// Check-all toggle
+checkAllEl.addEventListener('change', () => {
+  if (checkAllEl.checked) {
+    results.forEach((r, id) => { if (!r.error) selectedIds.add(id); });
+  } else {
+    selectedIds.clear();
+  }
+  // Re-render to update checkboxes
+  renderRightTree();
+  updateSelectionUI();
+});
+
+// ── Selection ZIP download ──
+btnSelZip.addEventListener('click', async () => {
+  if (!selectedIds.size) return;
+  const zip = new JSZip();
+  for (const id of selectedIds) {
+    const r = results.get(id);
+    const entry = fileMap.get(id);
+    if (!r || r.error || !entry) continue;
+    const parts = [...entry.path, entry.file.name.replace(/\.json$/, '.arl')];
+    zip.file(parts.join('/'), JSON.stringify(r.data, null, 2));
+  }
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'selected.zip';
+  a.click();
+});
+
+// ── Download selected as flat folder (all files in one folder, no subfolders) ──
+document.getElementById('btnSelFlatZip').addEventListener('click', async () => {
+  if (!selectedIds.size) return;
+  const zip = new JSZip();
+  const folder = zip.folder('converted');
+  const nameCount = {};
+  for (const id of selectedIds) {
+    const r = results.get(id);
+    const entry = fileMap.get(id);
+    if (!r || r.error || !entry) continue;
+    let arlName = entry.file.name.replace(/\.json$/, '.arl');
+    // Deduplicate filenames
+    if (nameCount[arlName] !== undefined) {
+      nameCount[arlName]++;
+      const ext = '.arl';
+      const base = arlName.slice(0, -ext.length);
+      arlName = `${base}(${nameCount[arlName]})${ext}`;
+    } else {
+      nameCount[arlName] = 0;
+    }
+    folder.file(arlName, JSON.stringify(r.data, null, 2));
+  }
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'converted.zip';
+  a.click();
+});
+
+// ── Selection folder save ──
+btnSelFolder.addEventListener('click', async () => {
+  if (!selectedIds.size) return;
+  if (!('showDirectoryPicker' in window)) {
+    alert('Folder saving is not supported in this browser. Please use ZIP download.');
+    return;
+  }
+  try {
+    const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+    for (const id of selectedIds) {
+      const r = results.get(id);
+      const entry = fileMap.get(id);
+      if (!r || r.error || !entry) continue;
+      let curDir = dirHandle;
+      for (const seg of entry.path) {
+        curDir = await curDir.getDirectoryHandle(seg, { create: true });
+      }
+      const arlName = entry.file.name.replace(/\.json$/, '.arl');
+      const fh = await curDir.getFileHandle(arlName, { create: true });
+      const writable = await fh.createWritable();
+      await writable.write(JSON.stringify(r.data, null, 2));
+      await writable.close();
+    }
+    alert(`✅ Saved ${selectedIds.size} file(s) to folder!`);
+  } catch (e) {
+    if (e.name !== 'AbortError') alert('Save error: ' + e.message);
+  }
+});
+
+// ── Clear selection ──
+btnSelClear.addEventListener('click', () => {
+  selectedIds.clear();
+  renderRightTree();
+  updateSelectionUI();
+});
+
+// ─────────────────────────────────────────
+// FILE INPUT EVENTS
+// ─────────────────────────────────────────
+document.getElementById('inputFiles').addEventListener('change', e => {
+  addFiles([...e.target.files], false);
+  e.target.value = '';
+});
+document.getElementById('inputFolder').addEventListener('change', e => {
+  addFiles([...e.target.files], true);
+  e.target.value = '';
+});
+
+// ─────────────────────────────────────────
+// DRAG & DROP on workspace
+// ─────────────────────────────────────────
+const workspace = document.getElementById('workspace');
+workspace.addEventListener('dragover', e => {
+  e.preventDefault();
+  workspace.classList.add('drag-over');
+  document.getElementById('panelLeft').classList.add('drag-over-active');
+});
+workspace.addEventListener('dragleave', e => {
+  if (!workspace.contains(e.relatedTarget)) {
+    workspace.classList.remove('drag-over');
+    document.getElementById('panelLeft').classList.remove('drag-over-active');
+  }
+});
+workspace.addEventListener('drop', async e => {
+  e.preventDefault();
+  workspace.classList.remove('drag-over');
+  document.getElementById('panelLeft').classList.remove('drag-over-active');
+
+  const items = [...e.dataTransfer.items];
+  const collected = [];
+
+  async function traverseEntry(entry, pathArr) {
+    if (entry.isFile) {
+      return new Promise(res => {
+        entry.file(f => {
+          if (f.name.endsWith('.json')) {
+            collected.push({ file: f, path: pathArr });
+          }
+          res();
+        });
+      });
+    } else if (entry.isDirectory) {
+      return new Promise(res => {
+        const reader = entry.createReader();
+        function readAll() {
+          reader.readEntries(async entries => {
+            if (!entries.length) return res();
+            await Promise.all(entries.map(ent => traverseEntry(ent, [...pathArr, entry.name])));
+            readAll();
+          });
+        }
+        readAll();
+      });
+    }
+  }
+
+  const promises = items
+    .filter(it => it.kind === 'file')
+    .map(it => it.webkitGetAsEntry())
+    .filter(Boolean)
+    .map(entry => traverseEntry(entry, []));
+
+  await Promise.all(promises);
+  addFilesRaw(collected);
+});
+
+// ─────────────────────────────────────────
+// ADD FILES
+// ─────────────────────────────────────────
+function addFiles(fileArr, useRelativePath) {
+  const raw = fileArr
+    .filter(f => f.name.endsWith('.json'))
+    .map(f => {
+      const rp = f.webkitRelativePath || f.name;
+      const parts = rp.split('/');
+      const pathArr = parts.slice(0, -1); // directory parts
+      return { file: f, path: pathArr };
+    });
+  addFilesRaw(raw);
+}
+
+function addFilesRaw(rawArr) {
+  if (!rawArr.length) return;
+  rawArr.forEach(({ file, path }) => {
+    const id = ++idCounter;
+    fileMap.set(id, { file, path });
+  });
+  updateUI();
+}
+
+// ─────────────────────────────────────────
+// BUILD TREE DATA
+// ─────────────────────────────────────────
+function buildTreeData(map) {
+  // Returns nested structure: { type:'folder'|'file', name, children?, id? }
+  const root = { type: 'folder', name: '__root__', children: [] };
+
+  map.forEach((entry, id) => {
+    const { file, path } = entry;
+    let cur = root;
+    path.forEach(seg => {
+      let child = cur.children.find(c => c.type === 'folder' && c.name === seg);
+      if (!child) {
+        child = { type: 'folder', name: seg, children: [] };
+        cur.children.push(child);
+      }
+      cur = child;
+    });
+    cur.children.push({ type: 'file', name: file.name, id });
+  });
+
+  return root;
+}
+
+// ─────────────────────────────────────────
+// RENDER LEFT TREE
+// ─────────────────────────────────────────
+async function renderLeftTree() {
+  leftTree.innerHTML = '';
+  if (!fileMap.size) return;
+
+  const root = buildTreeData(fileMap);
+
+  function renderNode(node, depth, container) {
+    if (node.type === 'folder' && node.name === '__root__') {
+      node.children.forEach(c => renderNode(c, depth, container));
+      return;
+    }
+
+    const wrap = document.createElement('div');
+    wrap.className = 'tree-node';
+
+    const row = document.createElement('div');
+    row.className = 'tree-row';
+    row.style.paddingLeft = (depth * 16 + 4) + 'px';
+
+    if (node.type === 'folder') {
+      const toggle = document.createElement('div');
+      toggle.className = 'tree-toggle';
+      toggle.textContent = '▶';
+
+      const icon = document.createElement('div');
+      icon.className = 'tree-icon';
+      icon.textContent = '📁';
+
+      const name = document.createElement('div');
+      name.className = 'tree-name folder-name';
+      name.textContent = node.name + '/';
+
+      row.appendChild(toggle);
+      row.appendChild(icon);
+      row.appendChild(name);
+
+      const children = document.createElement('div');
+      children.className = 'tree-children';
+
+      row.addEventListener('click', e => {
+        e.stopPropagation();
+        const isOpen = children.classList.contains('open');
+        children.classList.toggle('open', !isOpen);
+        toggle.style.transform = !isOpen ? 'rotate(90deg)' : '';
+        icon.textContent = !isOpen ? '📂' : '📁';
+      });
+
+      // Open by default only if autoExpand is on
+      if (autoExpand) {
+        children.classList.add('open');
+        toggle.style.transform = 'rotate(90deg)';
+        icon.textContent = '📂';
+      }
+
+      wrap.appendChild(row);
+      wrap.appendChild(children);
+
+      node.children.forEach(c => renderNode(c, depth + 1, children));
+
+    } else {
+      // File node
+      const toggle = document.createElement('div');
+      toggle.className = 'tree-toggle';
+      toggle.textContent = '▶';
+
+      const icon = document.createElement('div');
+      icon.className = 'tree-icon';
+      icon.textContent = '📄';
+
+      const name = document.createElement('div');
+      name.className = 'tree-name file-name';
+      name.textContent = node.name;
+
+      const statusEl = document.createElement('div');
+      statusEl.className = 'tree-status status-waiting';
+      statusEl.id = `status-left-${node.id}`;
+      statusEl.textContent = 'Pending';
+
+      row.appendChild(toggle);
+      row.appendChild(icon);
+      row.appendChild(name);
+      row.appendChild(statusEl);
+
+      // URL list section
+      const urlWrap = document.createElement('div');
+      urlWrap.className = 'url-list';
+      urlWrap.id = `urls-${node.id}`;
+
+      row.addEventListener('click', async e => {
+        e.stopPropagation();
+        // Read actual DOM state so expandAll stays in sync
+        const isOpen = urlWrap.classList.contains('open');
+        urlWrap.classList.toggle('open', !isOpen);
+        toggle.style.transform = !isOpen ? 'rotate(90deg)' : '';
+        if (!isOpen && !urlWrap.dataset.loaded) {
+          urlWrap.dataset.loaded = '1';
+          await loadUrlPreviews(node.id, urlWrap);
+        }
+      });
+
+      // Auto-open and load only if autoExpand is on
+      if (autoExpand) {
+        urlWrap.classList.add('open');
+        toggle.style.transform = 'rotate(90deg)';
+        urlWrap.dataset.loaded = '1';
+        loadUrlPreviews(node.id, urlWrap);
+      }
+
+      wrap.appendChild(row);
+      wrap.appendChild(urlWrap);
+    }
+
+    container.appendChild(wrap);
+  }
+
+  renderNode(root, 0, leftTree);
+}
+
+// ─────────────────────────────────────────
+// URL PREVIEW LOADER
+// ─────────────────────────────────────────
+async function loadUrlPreviews(id, container) {
+  const entry = fileMap.get(id);
+  if (!entry) return;
+  let json;
+  try {
+    const text = await entry.file.text();
+    json = JSON.parse(text);
+  } catch(e) {
+    const err = document.createElement('div');
+    err.style.cssText = 'font-family:IBM Plex Mono,monospace;font-size: 0.875rem;color:var(--error);padding:4px 8px';
+    err.textContent = 'JSON parse error';
+    container.appendChild(err);
+    return;
+  }
+
+  const urls = extractUrls(json);
+  if (!urls.length) {
+    const empty = document.createElement('div');
+    empty.style.cssText = 'font-family:IBM Plex Mono,monospace;font-size: 0.875rem;color:var(--text3);padding:4px 8px';
+    empty.textContent = 'No image URLs found';
+    container.appendChild(empty);
+    return;
+  }
+
+  urls.forEach(({ key, url }, urlIdx) => {
+    const itemWrap = document.createElement('div');
+    itemWrap.className = 'url-item';
+    itemWrap.dataset.fileId = id;
+    itemWrap.dataset.urlKey = key;
+    itemWrap.dataset.urlIdx = urlIdx;
+
+    // Top row: thumb + key + url text + replace button
+    const topRow = document.createElement('div');
+    topRow.style.cssText = 'display:flex;align-items:center;gap:8px;width:100%';
+
+    const thumb = document.createElement('img');
+    thumb.className = 'url-thumb';
+    thumb.src = url;
+    thumb.onerror = () => { thumb.style.display='none'; };
+
+    const keyTag = document.createElement('div');
+    keyTag.className = 'url-key';
+    keyTag.textContent = key;
+
+    const urlText = document.createElement('div');
+    urlText.className = 'url-text';
+    urlText.textContent = url;
+    urlText.title = url;
+
+    // 🔄 Replace URL button
+    const replBtn = document.createElement('button');
+    replBtn.className = 'url-replace-btn';
+    replBtn.textContent = '🔄 Replace';
+    replBtn.title = 'Replace this URL with an image search result';
+    replBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      openReplaceModal({ fileId: id, urlKey: key, urlIdx, urlText, thumb, previewImg: itemWrap.querySelector('.url-preview-img'), replBtn });
+    });
+
+    topRow.appendChild(thumb);
+    topRow.appendChild(keyTag);
+    topRow.appendChild(urlText);
+    topRow.appendChild(replBtn);
+    itemWrap.appendChild(topRow);
+
+    // Full preview always visible below
+    const previewImg = document.createElement('img');
+    previewImg.className = 'url-preview-img';
+    previewImg.src = url;
+    previewImg.onerror = () => { previewImg.style.display='none'; };
+    itemWrap.appendChild(previewImg);
+
+    container.appendChild(itemWrap);
+  });
+}
+
+function extractUrls(obj, prefix, result) {
+  if (!result) result = [];
+  if (!prefix) prefix = '';
+  if (typeof obj === 'string') {
+    if (/^https?:\/\/.+\.(png|jpe?g|gif|webp|svg|bmp|tiff?)(\?.*)?$/i.test(obj) ||
+        /^https?:\/\/.+(image|img|photo|thumb|banner|icon)/i.test(obj)) {
+      result.push({ key: prefix || 'url', url: obj });
+    }
+    return result;
+  }
+  if (Array.isArray(obj)) {
+    obj.forEach((v, i) => extractUrls(v, `${prefix}[${i}]`, result));
+    return result;
+  }
+  if (obj && typeof obj === 'object') {
+    Object.entries(obj).forEach(([k, v]) => extractUrls(v, prefix ? `${prefix}.${k}` : k, result));
+  }
+  return result;
+}
+
+// ─────────────────────────────────────────
+// RENDER RIGHT TREE
+// ─────────────────────────────────────────
+function renderRightTree() {
+  rightTree.innerHTML = '';
+  if (!results.size) {
+    rightOverlay.classList.remove('hidden');
+    return;
+  }
+  rightOverlay.classList.add('hidden');
+
+  // Build same tree structure but only show converted files
+  const root = buildTreeData(fileMap);
+
+  function renderNode(node, depth, container) {
+    if (node.type === 'folder' && node.name === '__root__') {
+      node.children.forEach(c => renderNode(c, depth, container));
+      return;
+    }
+
+    const wrap = document.createElement('div');
+    wrap.className = 'tree-node';
+
+    const row = document.createElement('div');
+    row.className = 'tree-row';
+    row.style.paddingLeft = (depth * 16 + 4) + 'px';
+
+    if (node.type === 'folder') {
+      const toggle = document.createElement('div');
+      toggle.className = 'tree-toggle';
+      toggle.textContent = '▶';
+      toggle.style.transform = 'rotate(90deg)';
+
+      const icon = document.createElement('div');
+      icon.className = 'tree-icon';
+      icon.textContent = '📂';
+
+      const name = document.createElement('div');
+      name.className = 'tree-name folder-name';
+      name.textContent = node.name + '/';
+
+      // Folder checkbox — selects all files under it
+      const folderCheck = document.createElement('input');
+      folderCheck.type = 'checkbox';
+      folderCheck.className = 'tree-check';
+      const folderIds = collectIdsFromNode(node);
+      const allSel = folderIds.length > 0 && folderIds.every(id => selectedIds.has(id));
+      const someSel = folderIds.some(id => selectedIds.has(id));
+      folderCheck.checked = allSel;
+      folderCheck.indeterminate = !allSel && someSel;
+      folderCheck.addEventListener('change', e => {
+        e.stopPropagation();
+        if (folderCheck.checked) folderIds.forEach(id => selectedIds.add(id));
+        else folderIds.forEach(id => selectedIds.delete(id));
+        renderRightTree();
+        updateSelectionUI();
+      });
+
+      row.appendChild(folderCheck);
+      row.appendChild(toggle);
+      row.appendChild(icon);
+      row.appendChild(name);
+
+      const children = document.createElement('div');
+      children.className = 'tree-children open';
+
+      row.addEventListener('click', e => {
+        if (e.target === folderCheck) return;
+        e.stopPropagation();
+        const open = children.classList.toggle('open');
+        toggle.style.transform = open ? 'rotate(90deg)' : '';
+        icon.textContent = open ? '📂' : '📁';
+      });
+
+      wrap.appendChild(row);
+      wrap.appendChild(children);
+      node.children.forEach(c => renderNode(c, depth + 1, children));
+
+    } else {
+      const r = results.get(node.id);
+      if (!r) {
+        // Not yet converted
+        const toggle = document.createElement('div');
+        toggle.className = 'tree-toggle';
+        toggle.textContent = ' ';
+        const icon = document.createElement('div');
+        icon.className = 'tree-icon';
+        icon.textContent = '⋯';
+        const name = document.createElement('div');
+        name.className = 'tree-name';
+        name.style.color = 'var(--text3)';
+        name.textContent = node.name.replace(/\.json$/, '.arl');
+        row.appendChild(toggle);
+        row.appendChild(icon);
+        row.appendChild(name);
+      } else if (r.error) {
+        const toggle = document.createElement('div');
+        toggle.className = 'tree-toggle';
+        toggle.textContent = ' ';
+        const icon = document.createElement('div');
+        icon.className = 'tree-icon';
+        icon.textContent = '❌';
+        const name = document.createElement('div');
+        name.className = 'tree-name';
+        name.style.color = 'var(--error)';
+        name.textContent = node.name.replace(/\.json$/, '.arl');
+        const errMsg = document.createElement('div');
+        errMsg.className = 'tree-status status-error';
+        errMsg.textContent = r.error;
+        row.appendChild(toggle);
+        row.appendChild(icon);
+        row.appendChild(name);
+        row.appendChild(errMsg);
+      } else {
+        const toggle = document.createElement('div');
+        toggle.className = 'tree-toggle';
+        toggle.textContent = '▶';
+
+        const icon = document.createElement('div');
+        icon.className = 'tree-icon';
+        icon.textContent = '✅';
+
+        const name = document.createElement('div');
+        name.className = 'tree-name converted-file-name';
+        name.textContent = node.name.replace(/\.json$/, '.arl');
+
+        const sizeEl = document.createElement('div');
+        sizeEl.className = 'tree-status status-done';
+        const bytes = JSON.stringify(r.data).length;
+        sizeEl.textContent = bytes > 1024 ? (bytes/1024).toFixed(1)+'KB' : bytes+'B';
+
+        // File checkbox
+        const fileCheck = document.createElement('input');
+        fileCheck.type = 'checkbox';
+        fileCheck.className = 'tree-check';
+        fileCheck.checked = selectedIds.has(node.id);
+        fileCheck.addEventListener('change', e => {
+          e.stopPropagation();
+          if (fileCheck.checked) selectedIds.add(node.id);
+          else selectedIds.delete(node.id);
+          updateSelectionUI();
+          // Update parent folder checkbox states without full re-render
+          renderRightTree();
+        });
+
+        row.appendChild(fileCheck);
+        row.appendChild(toggle);
+        row.appendChild(icon);
+        row.appendChild(name);
+        row.appendChild(sizeEl);
+        if (selectedIds.has(node.id)) row.classList.add('selected');
+
+        // JSON preview of converted
+        const preview = document.createElement('div');
+        preview.className = 'url-list';
+        const pre = document.createElement('pre');
+        pre.style.cssText = 'font-family:IBM Plex Mono,monospace;font-size: 0.875rem;color:var(--text2);padding:8px 12px;overflow:auto;max-height:200px;background:var(--surface2);border-radius:4px;border:1px solid var(--border);white-space:pre-wrap;word-break:break-all';
+        pre.textContent = JSON.stringify(r.data, null, 2).slice(0, 2000) + (JSON.stringify(r.data).length > 2000 ? '\n...' : '');
+
+        const dlItem = document.createElement('div');
+        dlItem.style.cssText = 'display:flex;gap:8px;padding:4px 0 2px 0';
+
+        const dlSingle = document.createElement('button');
+        dlSingle.style.cssText = 'font-family:IBM Plex Mono,monospace;font-size: 0.875rem;background:transparent;color:var(--accent2);border:1px solid var(--accent2);border-radius:4px;padding:3px 10px;cursor:pointer';
+        dlSingle.textContent = '⬇ Download this file';
+        dlSingle.addEventListener('click', e => {
+          e.stopPropagation();
+          downloadSingle(node.id);
+        });
+        dlItem.appendChild(dlSingle);
+        preview.appendChild(dlItem);
+        preview.appendChild(pre);
+
+        let open = false;
+        row.addEventListener('click', e => {
+          e.stopPropagation();
+          open = !open;
+          preview.classList.toggle('open', open);
+          toggle.style.transform = open ? 'rotate(90deg)' : '';
+        });
+
+        wrap.appendChild(row);
+        wrap.appendChild(preview);
+        container.appendChild(wrap);
+        return;
+      }
+
+      wrap.appendChild(row);
+    }
+
+    container.appendChild(wrap);
+  }
+
+  renderNode(root, 0, rightTree);
+}
+
+// ─────────────────────────────────────────
+// CONVERT
+// ─────────────────────────────────────────
+convertBtn.addEventListener('click', async () => {
+  convertBtn.disabled = true;
+  convertBtn.textContent = '⏳ Converting...';
+  results.clear();
+
+  progressWrap.classList.add('visible');
+  const total = fileMap.size;
+  let done = 0;
+
+  const ids = [...fileMap.keys()];
+  for (const id of ids) {
+    const statusEl = document.getElementById(`status-left-${id}`);
+    if (statusEl) { statusEl.className = 'tree-status status-processing'; statusEl.textContent = 'Processing...'; }
+
+    try {
+      const entry = fileMap.get(id);
+      const text = await entry.file.text();
+      const json = JSON.parse(text);
+      const res = await fetch(WORKER_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(json),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const converted = await res.json();
+      results.set(id, { data: converted });
+      if (statusEl) { statusEl.className = 'tree-status status-done'; statusEl.textContent = '✅ Done'; }
+    } catch(e) {
+      results.set(id, { error: e.message });
+      if (statusEl) { statusEl.className = 'tree-status status-error'; statusEl.textContent = '❌ Error'; }
+    }
+
+    done++;
+    progressBar.style.width = (done / total * 100) + '%';
+  }
+
+  setTimeout(() => progressWrap.classList.remove('visible'), 800);
+
+  convertBtn.disabled = false;
+  convertBtn.textContent = '⚡ Convert';
+
+  const hasSuccess = [...results.values()].some(r => !r.error);
+  dlZipBtn.style.display = hasSuccess ? 'inline-flex' : 'none';
+  dlFolderBtn.style.display = (hasSuccess && 'showDirectoryPicker' in window) ? 'inline-flex' : 'none';
+
+  renderRightTree();
+});
+
+// ─────────────────────────────────────────
+// FILENAME MODAL
+// ─────────────────────────────────────────
+const fnameModalBackdrop = document.getElementById('fnameModalBackdrop');
+const fnameInput         = document.getElementById('fnameInput');
+const fnameOkBtn         = document.getElementById('fnameOkBtn');
+const fnameCancelBtn     = document.getElementById('fnameCancelBtn');
+let _fnameCallback = null;
+
+function openFnameModal(defaultName, cb) {
+  fnameInput.value = defaultName;
+  _fnameCallback = cb;
+  fnameModalBackdrop.classList.add('open');
+  setTimeout(() => { fnameInput.focus(); fnameInput.select(); }, 50);
+}
+fnameOkBtn.addEventListener('click', () => {
+  const name = fnameInput.value.trim() || fnameInput.placeholder;
+  fnameModalBackdrop.classList.remove('open');
+  if (_fnameCallback) _fnameCallback(name);
+});
+fnameCancelBtn.addEventListener('click', () => {
+  fnameModalBackdrop.classList.remove('open');
+  _fnameCallback = null;
+});
+fnameInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') fnameOkBtn.click();
+  if (e.key === 'Escape') fnameCancelBtn.click();
+});
+fnameModalBackdrop.addEventListener('click', e => {
+  if (e.target === fnameModalBackdrop) fnameCancelBtn.click();
+});
+
+// ─────────────────────────────────────────
+// DOWNLOAD SINGLE
+// ─────────────────────────────────────────
+function downloadSingle(id) {
+  const r = results.get(id);
+  if (!r || r.error) return;
+  const entry = fileMap.get(id);
+  const defaultName = entry.file.name.replace(/\.json$/, '.arl');
+  openFnameModal(defaultName, (chosenName) => {
+    const finalName = chosenName.endsWith('.arl') ? chosenName : chosenName.replace(/\.[^.]*$/, '') + '.arl';
+    const blob = new Blob([JSON.stringify(r.data, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = finalName;
+    a.click();
+  });
+}
+
+// ─────────────────────────────────────────
+// DOWNLOAD ZIP
+// ─────────────────────────────────────────
+dlZipBtn.addEventListener('click', async () => {
+  const zip = new JSZip();
+  fileMap.forEach((entry, id) => {
+    const r = results.get(id);
+    if (!r || r.error) return;
+    const parts = [...entry.path, entry.file.name.replace(/\.json$/, '.arl')];
+    const zipPath = parts.join('/');
+    zip.file(zipPath, JSON.stringify(r.data, null, 2));
+  });
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'converted.zip';
+  a.click();
+});
+
+// ─────────────────────────────────────────
+// DOWNLOAD AS FOLDER (File System Access API)
+// ─────────────────────────────────────────
+dlFolderBtn.addEventListener('click', async () => {
+  if (!('showDirectoryPicker' in window)) {
+    alert('Folder saving is not supported in this browser. Please use ZIP download.');
+    return;
+  }
+  try {
+    const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+
+    for (const [id, entry] of fileMap) {
+      const r = results.get(id);
+      if (!r || r.error) continue;
+
+      let curDir = dirHandle;
+      for (const seg of entry.path) {
+        curDir = await curDir.getDirectoryHandle(seg, { create: true });
+      }
+      const arlName = entry.file.name.replace(/\.json$/, '.arl');
+      const fileHandle = await curDir.getFileHandle(arlName, { create: true });
+      const writable = await fileHandle.createWritable();
+      await writable.write(JSON.stringify(r.data, null, 2));
+      await writable.close();
+    }
+
+    alert('✅ Saved to folder successfully!');
+  } catch (e) {
+    if (e.name !== 'AbortError') alert('Save error: ' + e.message);
+  }
+});
+
+// ─────────────────────────────────────────
+// CLEAR
+// ─────────────────────────────────────────
+function clearAll() {
+  fileMap.clear();
+  results.clear();
+  selectedIds.clear();
+  idCounter = 0;
+  leftTree.innerHTML = '';
+  rightTree.innerHTML = '';
+  convertBtn.style.display = 'none';
+  dlZipBtn.style.display = 'none';
+  dlFolderBtn.style.display = 'none';
+  clearBtnEl.style.display = 'none';
+  const expandBtn = document.getElementById('expandAllBtn');
+  if (expandBtn) expandBtn.style.display = 'none';
+  const autoLabel = document.getElementById('autoExpandLabel');
+  if (autoLabel) autoLabel.style.display = 'none';
+  dropOverlay.classList.remove('hidden');
+  rightOverlay.classList.remove('hidden');
+  rightActionBar.classList.remove('visible');
+  checkAllEl.checked = false;
+  fileCountEl.textContent = 'No files';}
+
+// ─────────────────────────────────────────
+// EXPAND / COLLAPSE ALL (left tree)
+// ─────────────────────────────────────────
+let allExpanded = true;
+let autoExpand = true; // auto-expand on file load
+
+function toggleAutoExpand() {
+  autoExpand = !autoExpand;
+  const sw = document.getElementById('autoExpandToggle');
+  sw.classList.toggle('on', autoExpand);
+  // Re-render tree with new setting
+  renderLeftTree();
+  if (autoExpand) {
+    allExpanded = true;
+    const btn = document.getElementById('expandAllBtn');
+    if (btn) btn.textContent = '⊟ Collapse All';
+  }
+}
+function expandAll() {
+  allExpanded = !allExpanded;
+  const btn = document.getElementById('expandAllBtn');
+  if (allExpanded) {
+    // Open all folders
+    leftTree.querySelectorAll('.tree-children').forEach(el => el.classList.add('open'));
+    leftTree.querySelectorAll('.tree-toggle').forEach(el => el.style.transform = 'rotate(90deg)');
+    leftTree.querySelectorAll('.tree-icon').forEach(el => { if(el.textContent==='📁') el.textContent='📂'; });
+    // Open all url lists
+    leftTree.querySelectorAll('.url-list').forEach(el => el.classList.add('open'));
+    btn.textContent = '⊟ Collapse All';
+  } else {
+    // Close all folders
+    leftTree.querySelectorAll('.tree-children').forEach(el => el.classList.remove('open'));
+    leftTree.querySelectorAll('.tree-toggle').forEach(el => el.style.transform = '');
+    leftTree.querySelectorAll('.tree-icon').forEach(el => { if(el.textContent==='📂') el.textContent='📁'; });
+    // Close all url lists
+    leftTree.querySelectorAll('.url-list').forEach(el => el.classList.remove('open'));
+    btn.textContent = '⊞ Expand All';
+  }
+}
+
+// ─────────────────────────────────────────
+// UPDATE UI
+// ─────────────────────────────────────────
+function updateUI() {
+  const count = fileMap.size;
+  fileCountEl.textContent = count ? `${count} file(s)` : 'No files';
+  convertBtn.style.display = count ? 'inline-flex' : 'none';
+  clearBtnEl.style.display = count ? 'inline-flex' : 'none';
+  const expandBtn = document.getElementById('expandAllBtn');
+  const autoLabel = document.getElementById('autoExpandLabel');
+  const autoSw = document.getElementById('autoExpandToggle');
+  if (expandBtn) expandBtn.style.display = count ? 'inline-flex' : 'none';
+  if (autoLabel) autoLabel.style.display = count ? 'flex' : 'none';
+  if (autoSw) autoSw.classList.toggle('on', autoExpand);
+  if (autoExpand) {
+    allExpanded = true;
+    if (expandBtn) expandBtn.textContent = '⊟ Collapse All';
+  }
+  dropOverlay.classList.toggle('hidden', count > 0);
+  renderLeftTree();
+  renderRightTree();
+}
+
+// ─────────────────────────────────────────
+// PASTE PANEL
+// ─────────────────────────────────────────
+let pasteCounter = 0; // tracks sample_N numbering across sessions
+
+const pasteToggle   = document.getElementById('pasteToggle');
+const pasteChevron  = document.getElementById('pasteChevron');
+const pasteBody     = document.getElementById('pasteBody');
+const pasteTextarea = document.getElementById('pasteTextarea');
+const btnPasteAdd   = document.getElementById('btnPasteAdd');
+const btnPasteClear = document.getElementById('btnPasteClear');
+const pasteStatus   = document.getElementById('pasteStatus');
+
+// Toggle open/close
+pasteToggle.addEventListener('click', () => {
+  const isOpen = pasteBody.classList.toggle('open');
+  pasteChevron.classList.toggle('open', isOpen);
+});
+
+// Validate JSON as user types / pastes
+pasteTextarea.addEventListener('input', validatePaste);
+pasteTextarea.addEventListener('paste', () => setTimeout(validatePaste, 0));
+
+function validatePaste() {
+  const val = pasteTextarea.value.trim();
+  if (!val) {
+    pasteTextarea.className = 'paste-textarea';
+    pasteStatus.textContent = '';
+    pasteStatus.className = 'paste-status';
+    btnPasteAdd.disabled = true;
+    return;
+  }
+  try {
+    JSON.parse(val);
+    pasteTextarea.className = 'paste-textarea valid';
+    pasteStatus.textContent = '✔ Valid JSON';
+    pasteStatus.className = 'paste-status ok';
+    btnPasteAdd.disabled = false;
+  } catch (e) {
+    pasteTextarea.className = 'paste-textarea invalid';
+    pasteStatus.textContent = '✘ JSON error: ' + e.message.split('\n')[0];
+    pasteStatus.className = 'paste-status err';
+    btnPasteAdd.disabled = true;
+  }
+}
+
+// Auto-detect paste anywhere in the left panel and open the panel
+document.getElementById('panelLeft').addEventListener('paste', e => {
+  const text = e.clipboardData?.getData('text');
+  if (!text) return;
+  // Only intercept if not already focused on the textarea
+  if (document.activeElement === pasteTextarea) return;
+  // Open the paste panel
+  pasteBody.classList.add('open');
+  pasteChevron.classList.add('open');
+  pasteTextarea.value = text;
+  validatePaste();
+  pasteTextarea.focus();
+  e.preventDefault();
+});
+
+// Add button — create a synthetic File and register it
+btnPasteAdd.addEventListener('click', addPastedJSON);
+pasteTextarea.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') addPastedJSON();
+});
+
+function addPastedJSON() {
+  const val = pasteTextarea.value.trim();
+  if (!val) return;
+  let parsed;
+  try { parsed = JSON.parse(val); } catch { return; }
+
+  pasteCounter++;
+  const fileName = `sample_${pasteCounter}.json`;
+  const blob = new Blob([JSON.stringify(parsed, null, 2)], { type: 'application/json' });
+  const file = new File([blob], fileName, { type: 'application/json' });
+
+  addFilesRaw([{ file, path: [] }]);
+
+  // Reset textarea
+  pasteTextarea.value = '';
+  pasteTextarea.className = 'paste-textarea';
+  pasteStatus.textContent = `✔ ${fileName} added`;
+  pasteStatus.className = 'paste-status ok';
+  btnPasteAdd.disabled = true;
+  setTimeout(() => {
+    if (pasteStatus.textContent.includes('added')) {
+      pasteStatus.textContent = '';
+      pasteStatus.className = 'paste-status';
+    }
+  }, 2500);
+}
+
+// Clear button
+btnPasteClear.addEventListener('click', () => {
+  pasteTextarea.value = '';
+  pasteTextarea.className = 'paste-textarea';
+  pasteStatus.textContent = '';
+  pasteStatus.className = 'paste-status';
+  btnPasteAdd.disabled = true;
+});
+
+// Clipboard paste button
+document.getElementById('btnPasteClipboard').addEventListener('click', async () => {
+  try {
+    const text = await navigator.clipboard.readText();
+    pasteTextarea.value = text;
+    validatePaste();
+    pasteTextarea.focus();
+  } catch (e) {
+    pasteStatus.textContent = '✘ Clipboard access denied';
+    pasteStatus.className = 'paste-status err';
+    setTimeout(() => {
+      pasteStatus.textContent = '';
+      pasteStatus.className = 'paste-status';
+    }, 2500);
+  }
+});
+
+let _doSearchGlobal = null; // expose photo search function to outer scope
+
+// ─────────────────────────────────────────
+// PHOTO SEARCH (Cloudflare Worker proxy)
+// ─────────────────────────────────────────
+(function() {
+
+const searchToggleBar    = document.getElementById('searchToggleBar');
+const searchBody         = document.getElementById('searchBody');
+const srcUnsplash        = document.getElementById('srcUnsplash');
+const srcPexels          = document.getElementById('srcPexels');
+const srcPixabay         = document.getElementById('srcPixabay');
+const searchKeyword      = document.getElementById('searchKeyword');
+const btnSearch          = document.getElementById('btnSearch');
+const searchResultsWrap  = document.getElementById('searchResultsWrap');
+const searchResultsGrid  = document.getElementById('searchResultsGrid');
+const searchLoadMore     = document.getElementById('searchLoadMore');
+const searchPerPage      = document.getElementById('searchPerPage');
+const searchModalBackdrop= document.getElementById('searchModalBackdrop');
+const searchModalClose   = document.getElementById('searchModalClose');
+const searchModalKw      = document.getElementById('searchModalKw');
+const searchStatusModal  = document.getElementById('searchStatusModal');
+
+let searchPage = { unsplash: 1, pexels: 1, pixabay: 1 };
+let addedUrls = new Set();
+// expose doSearch after it's defined — done at bottom of IIFE
+
+// ── Open / close modal ──
+searchToggleBar.addEventListener('click', () => {
+  searchModalBackdrop.classList.add('open');
+  // sync quick input → modal keyword input
+  const quickKw = document.getElementById('searchKeywordQuick');
+  if (quickKw && quickKw.value.trim()) searchKeyword.value = quickKw.value.trim();
+  setTimeout(() => searchKeyword.focus(), 80);
+});
+searchModalClose.addEventListener('click', () => searchModalBackdrop.classList.remove('open'));
+searchModalBackdrop.addEventListener('click', e => {
+  if (e.target === searchModalBackdrop) searchModalBackdrop.classList.remove('open');
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && searchModalBackdrop.classList.contains('open'))
+    searchModalBackdrop.classList.remove('open');
+});
+
+// ── Search ──
+btnSearch.addEventListener('click', () => doSearch(true));
+searchKeyword.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(true); });
+searchLoadMore.addEventListener('click', () => doSearch(false));
+
+async function doSearch(fresh) {
+  const kw = searchKeyword.value.trim();
+  if (!kw) { setStatus('Please enter a keyword', 'err'); return; }
+  const perPage = parseInt(searchPerPage.value);
+
+  const sources = [];
+  if (srcUnsplash.checked) sources.push('unsplash');
+  if (srcPexels.checked)   sources.push('pexels');
+  if (srcPixabay.checked)  sources.push('pixabay');
+  if (!sources.length)     { setStatus('⚠ Select at least one source', 'err'); return; }
+
+  if (fresh) {
+    searchPage = { unsplash: 1, pexels: 1, pixabay: 1 };
+    searchResultsGrid.innerHTML = '';
+    addedUrls.clear();
+  }
+
+  searchModalKw.textContent = kw;
+  btnSearch.disabled = true;
+  searchLoadMore.style.display = 'none';
+  setStatus(`Searching "${kw}"...`);
+  searchResultsWrap.style.display = '';
+
+  const promises = sources.map(src => fetchSource(src, kw, perPage));
+  const settled  = await Promise.allSettled(promises);
+
+  let total = 0;
+  settled.forEach((res, i) => {
+    if (res.status === 'fulfilled') {
+      res.value.forEach(item => renderSearchResult(item));
+      total += res.value.length;
+      searchPage[sources[i]]++;
+    } else {
+      console.warn(sources[i], res.reason);
+    }
+  });
+
+  setStatus(total ? `✓ ${total} images loaded` : 'No results', total ? 'ok' : 'err');
+  searchLoadMore.style.display = total ? '' : 'none';
+  btnSearch.disabled = false;
+}
+
+async function fetchSource(src, kw, perPage) {
+  const page = searchPage[src];
+  const res = await fetch(
+    `${SEARCH_WORKER_URL}?source=${src}&q=${encodeURIComponent(kw)}&per_page=${perPage}&page=${page}`
+  );
+  if (!res.ok) throw new Error(`${src} HTTP ${res.status}`);
+  return await res.json();
+}
+
+function renderSearchResult(item) {
+  const card = document.createElement('div');
+  card.className = 'search-result-item' + (addedUrls.has(item.full) ? ' added' : '');
+  card.title = `${item.alt}\nby ${item.author}`;
+
+  const img = document.createElement('img');
+  img.className = 'search-result-img';
+  img.src = item.thumb;
+  img.alt = item.alt;
+  img.loading = 'lazy';
+
+  const badge = document.createElement('div');
+  badge.className = `search-result-source src-badge-${item.src}`;
+  badge.textContent = item.src[0].toUpperCase() + item.src.slice(1);
+
+  const overlay = document.createElement('div');
+  overlay.className = 'search-result-overlay';
+  overlay.textContent = addedUrls.has(item.full) ? '✓' : '＋';
+
+  card.appendChild(img);
+  card.appendChild(badge);
+  card.appendChild(overlay);
+
+  card.addEventListener('click', () => {
+    if (addedUrls.has(item.full)) return;
+    addedUrls.add(item.full);
+    card.classList.add('added');
+    overlay.textContent = '✓';
+    b64AddUrl(item.full);
+  });
+
+  searchResultsGrid.appendChild(card);
+}
+
+function setStatus(msg, type) {
+  searchStatusModal.textContent = msg;
+  searchStatusModal.className = 'search-status-bar' + (type ? ' ' + type : '');
+}
+
+// ── Quick search bar (always visible) ──
+const searchKeywordQuick = document.getElementById('searchKeywordQuick');
+searchKeywordQuick.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    const kw = searchKeywordQuick.value.trim();
+    if (!kw) return;
+    searchKeyword.value = kw;
+    searchModalBackdrop.classList.add('open');
+    if (_doSearchGlobal) _doSearchGlobal(true);
+  }
+});
+// sync quick input value when modal opens (via toggle bar click handler above)
+// note: duplicate listener removed — sync handled inside the main click handler
+
+// expose doSearch to outer scope for quick search bar
+_doSearchGlobal = doSearch;
+
+})(); // end PHOTO SEARCH IIFE
+
+// ─────────────────────────────────────────
+// URL REPLACE MODAL (Replace JSON URLs with image search results)
+// ─────────────────────────────────────────
+(function() {
+
+const backdrop      = document.getElementById('replaceModalBackdrop');
+const closeBtn      = document.getElementById('replaceModalClose');
+const kwInput       = document.getElementById('replaceSearchKw');
+const searchBtn     = document.getElementById('replaceSearchBtn');
+const perPageSel    = document.getElementById('replacePerPage');
+const grid          = document.getElementById('replaceResultsGrid');
+const loadMoreBtn   = document.getElementById('replaceLoadMore');
+const statusEl      = document.getElementById('replaceStatus');
+const previewThumb  = document.getElementById('replacePreviewThumb');
+const previewUrl    = document.getElementById('replacePreviewUrl');
+const applyBtn      = document.getElementById('replaceApplyBtn');
+const targetKeyEl   = document.getElementById('replaceTargetKey');
+
+let _ctx = null;          // { fileId, urlKey, urlIdx, urlText, thumb, previewImg }
+let _selectedItem = null; // { full, thumb }
+let _page = { unsplash:1, pexels:1, pixabay:1 };
+const SEARCH_URL = 'https://json-to-arl.cwicwi2016.workers.dev/search';
+
+window.openReplaceModal = function(ctx) {
+  _ctx = ctx;
+  _selectedItem = null;
+  _page = { unsplash:1, pexels:1, pixabay:1 };
+  grid.innerHTML = '';
+  statusEl.textContent = '';
+  statusEl.className = 'replace-status-bar';
+  previewThumb.style.display = 'none';
+  previewUrl.textContent = 'Click an image to select';
+  applyBtn.disabled = true;
+  loadMoreBtn.style.display = 'none';
+  targetKeyEl.textContent = ctx.urlKey;
+  // Auto-suggest keyword from key name
+  const autoKw = ctx.urlKey.split('.').pop().replace(/[_-]/g,' ');
+  kwInput.value = autoKw;
+  backdrop.classList.add('open');
+  setTimeout(() => kwInput.focus(), 80);
+  if (autoKw) doReplaceSearch(true);
+};
+
+closeBtn.addEventListener('click', () => backdrop.classList.remove('open'));
+backdrop.addEventListener('click', e => { if (e.target === backdrop) backdrop.classList.remove('open'); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && backdrop.classList.contains('open')) backdrop.classList.remove('open');
+});
+
+searchBtn.addEventListener('click', () => doReplaceSearch(true));
+kwInput.addEventListener('keydown', e => { if (e.key === 'Enter') doReplaceSearch(true); });
+loadMoreBtn.addEventListener('click', () => doReplaceSearch(false));
+
+async function doReplaceSearch(fresh) {
+  const kw = kwInput.value.trim();
+  if (!kw) { setReplaceStatus('Please enter a keyword', 'err'); return; }
+  const perPage = parseInt(perPageSel.value);
+  const sources = ['unsplash','pexels','pixabay'];
+  if (fresh) { _page = { unsplash:1, pexels:1, pixabay:1 }; grid.innerHTML = ''; }
+  searchBtn.disabled = true;
+  loadMoreBtn.style.display = 'none';
+  setReplaceStatus(`Searching "${kw}"...`);
+  const settled = await Promise.allSettled(sources.map(src => fetchReplaceSource(src, kw, perPage)));
+  let total = 0;
+  settled.forEach((res, i) => {
+    if (res.status === 'fulfilled') { res.value.forEach(item => renderReplaceItem(item)); total += res.value.length; _page[sources[i]]++; }
+    else console.warn(sources[i], res.reason);
+  });
+  setReplaceStatus(total ? `✓ ${total} images loaded` : 'No results', total ? 'ok' : 'err');
+  loadMoreBtn.style.display = total ? '' : 'none';
+  searchBtn.disabled = false;
+}
+
+async function fetchReplaceSource(src, kw, perPage) {
+  const page = _page[src];
+  const res = await fetch(
+    `${SEARCH_URL}?source=${src}&q=${encodeURIComponent(kw)}&per_page=${perPage}&page=${page}`
+  );
+  if (!res.ok) throw new Error(`${src} HTTP ${res.status}`);
+  return await res.json();
+}
+
+function renderReplaceItem(item) {
+  const card = document.createElement('div');
+  card.className = 'replace-result-item';
+  card.title = `${item.alt || ''}\nby ${item.author || ''}`;
+  const img = document.createElement('img');
+  img.className = 'replace-result-img';
+  img.src = item.thumb;
+  img.loading = 'lazy';
+  const overlay = document.createElement('div');
+  overlay.className = 'replace-result-overlay';
+  overlay.textContent = '＋';
+  card.appendChild(img);
+  card.appendChild(overlay);
+  card.addEventListener('click', () => {
+    document.querySelectorAll('.replace-result-item.selected').forEach(el => {
+      el.classList.remove('selected');
+      el.querySelector('.replace-result-overlay').textContent = '＋';
+    });
+    card.classList.add('selected');
+    overlay.textContent = '✓';
+    _selectedItem = item;
+    previewThumb.src = item.thumb;
+    previewThumb.style.display = 'block';
+
+    // Apply resolution setting to final URL
+    const resVal = document.querySelector('input[name="arlRes"]:checked')?.value || 'orig';
+    let finalUrl = item.full;
+    if (resVal !== 'orig') {
+      const RES = { hd: { w:1280, h:720 }, fhd: { w:1920, h:1080 } };
+      const r = RES[resVal];
+      if (r) {
+        // Unsplash: w= parameter
+        if (item.src === 'unsplash') {
+          try { const u = new URL(item.full); u.searchParams.set('w', r.w); u.searchParams.set('h', r.h); u.searchParams.set('fit','crop'); finalUrl = u.toString(); } catch {}
+        }
+        // Pexels: append resize params
+        else if (item.src === 'pexels') {
+          try { const u = new URL(item.full); u.searchParams.set('w', r.w); u.searchParams.set('h', r.h); u.searchParams.set('auto','compress'); finalUrl = u.toString(); } catch {}
+        }
+        // Pixabay: no resize param, use as-is
+      }
+    }
+    _selectedItem._finalUrl = finalUrl;
+    previewUrl.textContent = finalUrl;
+    applyBtn.disabled = false;
+  });
+  grid.appendChild(card);
+}
+
+applyBtn.addEventListener('click', () => {
+  if (!_selectedItem || !_ctx) return;
+  const newUrl = _selectedItem._finalUrl || _selectedItem.full;
+  // 1. Update DOM (preview image, urlText)
+  if (_ctx.urlText) { _ctx.urlText.textContent = newUrl; _ctx.urlText.title = newUrl; }
+  if (_ctx.thumb)   { _ctx.thumb.src = newUrl; }
+  if (_ctx.previewImg) { _ctx.previewImg.src = newUrl; }
+  // 2. Patch JSON data in fileMap (in-memory)
+  const entry = fileMap.get(_ctx.fileId);
+  if (entry) {
+    entry.file.text().then(text => {
+      try {
+        const json = JSON.parse(text);
+        patchJsonUrl(json, _ctx.urlKey, newUrl);
+        const blob = new Blob([JSON.stringify(json, null, 2)], { type: 'application/json' });
+        const newFile = new File([blob], entry.file.name, { type: 'application/json' });
+        fileMap.set(_ctx.fileId, { ...entry, file: newFile, _urlPatched: true });
+        // Visual feedback on button
+        if (_ctx.replBtn) { _ctx.replBtn.textContent = '✓ Replaced'; _ctx.replBtn.classList.add('replaced'); }
+      } catch(e) { console.error('JSON patch failed', e); }
+    });
+  }
+  backdrop.classList.remove('open');
+});
+
+function patchJsonUrl(obj, keyPath, newUrl) {
+  // keyPath format: "key" or "parent.child" or "arr[0].key"
+  const parts = keyPath.replace(/\[(\d+)\]/g, '.$1').split('.');
+  let cur = obj;
+  for (let i = 0; i < parts.length - 1; i++) {
+    if (cur == null) return;
+    cur = cur[parts[i]];
+  }
+  if (cur != null) cur[parts[parts.length-1]] = newUrl;
+}
+
+function setReplaceStatus(msg, type) {
+  statusEl.textContent = msg;
+  statusEl.className = 'replace-status-bar' + (type ? ' '+type : '');
+}
+
+})(); // end URL REPLACE IIFE
+
+// ─────────────────────────────────────────
+// MODE SWITCHER
+// ─────────────────────────────────────────
+const mainWorkspace = document.getElementById('workspace');
+const b64Workspace  = document.getElementById('b64Workspace');
+const progressWrapEl = document.getElementById('progressWrap');
+
+document.querySelectorAll('input[name="appMode"]').forEach(radio => {
+  radio.addEventListener('change', () => {
+    const isB64 = radio.value === 'b64';
+    mainWorkspace.style.display = isB64 ? 'none' : '';
+    b64Workspace.classList.toggle('active', isB64);
+    // Hide/show header actions that belong to JSON→ARL mode only
+    document.querySelector('.header-actions').style.display = isB64 ? 'none' : '';
+    progressWrapEl.style.display = isB64 ? 'none' : '';
+  });
+});
+
+// ─────────────────────────────────────────
+// BASE64 CONVERTER
+// ─────────────────────────────────────────
+let b64Items = [];  // { id, url, status:'pending'|'loading'|'done'|'error', b64, mime, w, h, size, error, open }
+let b64IdCounter = 0;
+
+const b64UrlInput   = document.getElementById('b64UrlInput');
+const b64AddBtn     = document.getElementById('b64AddBtn');
+const b64List       = document.getElementById('b64List');
+const b64Empty      = document.getElementById('b64Empty');
+const b64ConvertBtn = document.getElementById('b64ConvertBtn');
+const b64ClearAllBtn = document.getElementById('b64ClearAllBtn');
+const b64DropZone   = document.getElementById('b64DropZone');
+const b64RightBody  = document.getElementById('b64RightBody');
+const b64RightEmpty = document.getElementById('b64RightEmpty');
+const b64CopyAllBtn = document.getElementById('b64CopyAllBtn');
+
+function b64UpdateUI() {
+  const hasItems = b64Items.length > 0;
+  b64Empty.style.display = hasItems ? 'none' : '';
+  b64ConvertBtn.style.display = hasItems ? 'inline-flex' : 'none';
+  b64ClearAllBtn.style.display = hasItems ? 'inline-flex' : 'none';
+  const hasDone = b64Items.some(i => i.status === 'done');
+  b64CopyAllBtn.style.display = hasDone ? 'inline-block' : 'none';
+}
+
+function b64AddUrl(url) {
+  url = url.trim();
+  if (!url) return;
+  // Validate: must look like a URL
+  if (!/^(https?:\/\/|blob:|data:image\/)/i.test(url)) {
+    b64FlashInput('invalid');
+    return;
+  }
+  // Avoid duplicates
+  if (b64Items.some(i => i.url === url)) {
+    b64FlashInput('dup');
+    return;
+  }
+  b64Items.push({ id: ++b64IdCounter, url, status: 'pending', b64: null, mime: null, w: null, h: null, size: null, error: null, open: false });
+  b64RenderList();
+  b64UpdateUI();
+}
+
+function b64FlashInput(type) {
+  b64UrlInput.className = 'b64-url-input ' + (type === 'dup' ? 'error' : 'error');
+  setTimeout(() => { b64UrlInput.className = 'b64-url-input'; }, 800);
+}
+
+b64AddBtn.addEventListener('click', () => {
+  const v = b64UrlInput.value.trim();
+  if (!v) return;
+  b64AddUrl(v);
+  b64UrlInput.value = '';
+});
+
+b64UrlInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') { b64AddBtn.click(); }
+});
+
+b64UrlInput.addEventListener('paste', e => {
+  setTimeout(() => {
+    const v = b64UrlInput.value.trim();
+    if (v) { b64UrlInput.className = 'b64-url-input valid'; }
+  }, 0);
+});
+
+// Drag & drop images onto drop zone
+b64DropZone.addEventListener('dragover', e => {
+  e.preventDefault();
+  b64DropZone.classList.add('drag-over');
+});
+b64DropZone.addEventListener('dragleave', () => {
+  b64DropZone.classList.remove('drag-over');
+});
+b64DropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  b64DropZone.classList.remove('drag-over');
+  const files = [...e.dataTransfer.files].filter(f => f.type.startsWith('image/'));
+  files.forEach(f => b64AddFileItem(f));
+  // Also handle dropped URLs
+  const text = e.dataTransfer.getData('text/plain');
+  if (text && !files.length) {
+    text.split('\n').map(l => l.trim()).filter(Boolean).forEach(b64AddUrl);
+  }
+});
+
+function b64AddFileItem(file) {
+  const id = ++b64IdCounter;
+  const url = URL.createObjectURL(file);
+  const item = { id, url, status: 'pending', b64: null, mime: file.type, w: null, h: null, size: file.size, error: null, open: false, isFile: true, fileName: file.name, fileObj: file };
+  b64Items.push(item);
+  b64RenderList();
+  b64UpdateUI();
+}
+
+// Convert all button
+b64ConvertBtn.addEventListener('click', async () => {
+  b64ConvertBtn.disabled = true;
+  b64ConvertBtn.textContent = '⏳ Converting...';
+  const pending = b64Items.filter(i => i.status === 'pending' || i.status === 'error');
+  for (const item of pending) {
+    item.status = 'loading';
+    b64RenderItemStatus(item);
+    try {
+      let b64, mime, w, h, size;
+      if (item.isFile) {
+        ({ b64, mime, w, h, size } = await b64FromFile(item.fileObj));
+      } else {
+        ({ b64, mime, w, h, size } = await b64FromUrl(item.url));
+      }
+      item.b64 = b64;
+      item.mime = mime;
+      item.w = w;
+      item.h = h;
+      item.size = size;
+      item.status = 'done';
+    } catch(e) {
+      item.status = 'error';
+      item.error = e.message;
+    }
+    b64RenderItemStatus(item);
+  }
+  b64ConvertBtn.disabled = false;
+  b64ConvertBtn.textContent = '⚡ Convert All';
+  b64RenderRightPanel();
+  b64UpdateUI();
+});
+
+async function b64FromUrl(url) {
+  const resp = await fetch(url, { mode: 'cors' });
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  const blob = await resp.blob();
+  return b64FromBlob(blob);
+}
+
+async function b64FromFile(file) {
+  return b64FromBlob(file);
+}
+
+function b64FromBlob(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result;
+      const mime = blob.type || 'image/png';
+      const img = new Image();
+      img.onload = () => {
+        const origW = img.naturalWidth, origH = img.naturalHeight;
+        // Read resolution setting
+        const resVal = document.querySelector('input[name="b64Res"]:checked')?.value || 'orig';
+        const RES_MAP = { hd: [1280, 720], fhd: [1920, 1080] };
+        let targetW = origW, targetH = origH;
+        if (resVal !== 'orig' && RES_MAP[resVal]) {
+          const [mw, mh] = RES_MAP[resVal];
+          const ratio = Math.min(mw / origW, mh / origH, 1); // shrink only, no upscaling
+          if (ratio < 1) { targetW = Math.round(origW * ratio); targetH = Math.round(origH * ratio); }
+        }
+        if (targetW === origW && targetH === origH) {
+          // no resize needed
+          const b64 = dataUrl.split(',')[1];
+          resolve({ b64, mime, w: origW, h: origH, size: blob.size });
+        } else {
+          const canvas = document.createElement('canvas');
+          canvas.width = targetW; canvas.height = targetH;
+          canvas.getContext('2d').drawImage(img, 0, 0, targetW, targetH);
+          const resizedDataUrl = canvas.toDataURL(mime, 0.92);
+          const b64 = resizedDataUrl.split(',')[1];
+          const approxSize = Math.round(b64.length * 0.75);
+          resolve({ b64, mime, w: targetW, h: targetH, size: approxSize });
+        }
+      };
+      img.onerror = () => {
+        const b64 = dataUrl.split(',')[1];
+        resolve({ b64, mime: blob.type || 'image/png', w: null, h: null, size: blob.size });
+      };
+      img.src = dataUrl;
+    };
+    reader.onerror = () => reject(new Error('File read failed'));
+    reader.readAsDataURL(blob);
+  });
+}
+
+function b64FormatSize(bytes) {
+  if (!bytes) return '?';
+  if (bytes < 1024) return bytes + 'B';
+  if (bytes < 1024*1024) return (bytes/1024).toFixed(1)+'KB';
+  return (bytes/1024/1024).toFixed(2)+'MB';
+}
+
+function b64RenderList() {
+  // Clear all except the empty message
+  b64List.innerHTML = '';
+  b64List.appendChild(b64Empty);
+  b64Items.forEach(item => {
+    const el = b64MakeItemEl(item);
+    b64List.appendChild(el);
+  });
+}
+
+function b64MakeItemEl(item) {
+  const wrap = document.createElement('div');
+  wrap.className = 'b64-item';
+  wrap.id = `b64item-${item.id}`;
+
+  const header = document.createElement('div');
+  header.className = 'b64-item-header';
+
+  const thumb = document.createElement('img');
+  thumb.className = 'b64-thumb-small';
+  thumb.src = item.url;
+  thumb.alt = '';
+  thumb.onerror = () => { thumb.style.display = 'none'; };
+
+  const urlEl = document.createElement('div');
+  urlEl.className = 'b64-item-url';
+  urlEl.textContent = item.isFile ? (item.fileName || item.url) : item.url;
+  urlEl.title = item.url;
+
+  const badge = document.createElement('div');
+  badge.className = `b64-status-badge ${item.status}`;
+  badge.textContent = { pending:'⏸ Pending', loading:'⟳ Loading', done:`✓ Done (${b64FormatSize(item.size)})`, error:'✕ Error' }[item.status] || item.status;
+
+  const removeBtn = document.createElement('button');
+  removeBtn.className = 'b64-remove-btn';
+  removeBtn.textContent = '✕';
+  removeBtn.title = 'Remove';
+  removeBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    b64Items = b64Items.filter(i => i.id !== item.id);
+    b64RenderList();
+    b64RenderRightPanel();
+    b64UpdateUI();
+  });
+
+  header.appendChild(thumb);
+  header.appendChild(urlEl);
+  header.appendChild(badge);
+  header.appendChild(removeBtn);
+
+  const body = document.createElement('div');
+  body.className = 'b64-item-body' + (item.open ? ' open' : '');
+
+  if (item.status === 'done' && item.b64) {
+    const previewImg = document.createElement('img');
+    previewImg.className = 'b64-preview-img';
+    previewImg.src = `data:${item.mime};base64,${item.b64}`;
+    body.appendChild(previewImg);
+
+    const resultWrap = document.createElement('div');
+    resultWrap.className = 'b64-result-wrap';
+
+    const infoBar = document.createElement('div');
+    infoBar.className = 'b64-info-bar';
+    infoBar.innerHTML = `
+      Type: <span>${item.mime}</span> &nbsp;·&nbsp;
+      Size: <span>${b64FormatSize(item.size)}</span> &nbsp;·&nbsp;
+      ${item.w ? `Dimensions: <span>${item.w}×${item.h}</span> &nbsp;·&nbsp;` : ''}
+      Base64 length: <span>${item.b64.length.toLocaleString()} chars</span>
+    `;
+    resultWrap.appendChild(infoBar);
+
+    const label = document.createElement('div');
+    label.className = 'b64-result-label';
+    label.textContent = 'Data URL (data:mime;base64,...)';
+    resultWrap.appendChild(label);
+
+    const box = document.createElement('div');
+    box.className = 'b64-result-box';
+    const dataUrl = `data:${item.mime};base64,${item.b64}`;
+    box.textContent = dataUrl.slice(0, 500) + (dataUrl.length > 500 ? '...' : '');
+    resultWrap.appendChild(box);
+
+    const btnRow = document.createElement('div');
+    btnRow.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap';
+
+    const copyDataUrl = document.createElement('button');
+    copyDataUrl.className = 'b64-copy-btn';
+    copyDataUrl.textContent = '📋 Copy Data URL';
+    copyDataUrl.addEventListener('click', () => b64CopyText(dataUrl, copyDataUrl, 'Copied!'));
+    btnRow.appendChild(copyDataUrl);
+
+    const copyB64Only = document.createElement('button');
+    copyB64Only.className = 'b64-copy-btn';
+    copyB64Only.textContent = '📋 Copy Base64 only';
+    copyB64Only.addEventListener('click', () => b64CopyText(item.b64, copyB64Only, 'Copied!'));
+    btnRow.appendChild(copyB64Only);
+
+    const downloadBtn = document.createElement('button');
+    downloadBtn.className = 'b64-copy-btn';
+    downloadBtn.textContent = '⬇ Download';
+    downloadBtn.addEventListener('click', () => {
+      const ext = item.mime.split('/')[1] || 'png';
+      const defaultName = item.isFile ? (item.fileName || `image_${item.id}.${ext}`) : `image_${item.id}.${ext}`;
+      openFnameModal(defaultName, (chosenName) => {
+        const a = document.createElement('a');
+        a.href = `data:${item.mime};base64,${item.b64}`;
+        a.download = chosenName;
+        a.click();
+      });
+    });
+    btnRow.appendChild(downloadBtn);
+
+    resultWrap.appendChild(btnRow);
+    body.appendChild(resultWrap);
+  } else if (item.status === 'error') {
+    const errEl = document.createElement('div');
+    errEl.style.cssText = 'padding:10px 12px;font-family:IBM Plex Mono,monospace;font-size: 0.875rem;color:var(--error)';
+    errEl.textContent = '✕ ' + (item.error || 'Conversion failed');
+    body.appendChild(errEl);
+  }
+
+  header.addEventListener('click', () => {
+    item.open = !item.open;
+    body.classList.toggle('open', item.open);
+  });
+
+  wrap.appendChild(header);
+  wrap.appendChild(body);
+  return wrap;
+}
+
+function b64RenderItemStatus(item) {
+  const wrap = document.getElementById(`b64item-${item.id}`);
+  if (!wrap) { b64RenderList(); return; }
+  const newEl = b64MakeItemEl(item);
+  wrap.replaceWith(newEl);
+}
+
+function b64RenderRightPanel() {
+  b64RightBody.innerHTML = '';
+  const doneItems = b64Items.filter(i => i.status === 'done' && i.b64);
+  if (!doneItems.length) {
+    b64RightBody.appendChild(b64RightEmpty);
+    b64CopyAllBtn.style.display = 'none';
+    return;
+  }
+  b64CopyAllBtn.style.display = 'inline-block';
+
+  doneItems.forEach(item => {
+    const card = document.createElement('div');
+    card.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:6px;overflow:hidden;margin-bottom:10px';
+
+    const cardHeader = document.createElement('div');
+    cardHeader.style.cssText = 'padding:8px 12px;border-bottom:1px solid var(--border);font-family:IBM Plex Mono,monospace;font-size:0.8rem;color:var(--text2);display:flex;align-items:center;gap:8px';
+
+    const miniThumb = document.createElement('img');
+    miniThumb.style.cssText = 'width:24px;height:24px;object-fit:cover;border-radius:3px;flex-shrink:0';
+    miniThumb.src = `data:${item.mime};base64,${item.b64}`;
+
+    const urlSpan = document.createElement('span');
+    urlSpan.style.cssText = 'flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+    urlSpan.textContent = item.isFile ? (item.fileName || 'file') : item.url;
+    urlSpan.title = item.url;
+
+    const sizeSpan = document.createElement('span');
+    sizeSpan.style.cssText = 'color:var(--text3);flex-shrink:0';
+    sizeSpan.textContent = b64FormatSize(item.size);
+
+    cardHeader.appendChild(miniThumb);
+    cardHeader.appendChild(urlSpan);
+    cardHeader.appendChild(sizeSpan);
+
+    const dataUrl = `data:${item.mime};base64,${item.b64}`;
+    const box = document.createElement('div');
+    box.className = 'b64-result-box';
+    box.style.cssText = 'margin:10px 12px;font-family:IBM Plex Mono,monospace;font-size:0.75rem;color:var(--text2);background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:8px 10px;word-break:break-all;max-height:80px;overflow-y:auto;line-height:1.5';
+    box.textContent = dataUrl.slice(0, 300) + (dataUrl.length > 300 ? '...' : '');
+
+    const btnRow = document.createElement('div');
+    btnRow.style.cssText = 'display:flex;gap:6px;padding:0 12px 10px 12px;flex-wrap:wrap';
+
+    const cp1 = document.createElement('button');
+    cp1.className = 'b64-copy-btn';
+    cp1.style.fontSize = '0.8rem';
+    cp1.textContent = '📋 Data URL';
+    cp1.addEventListener('click', () => b64CopyText(dataUrl, cp1, '✓'));
+    btnRow.appendChild(cp1);
+
+    const cp2 = document.createElement('button');
+    cp2.className = 'b64-copy-btn';
+    cp2.style.fontSize = '0.8rem';
+    cp2.textContent = '📋 Base64';
+    cp2.addEventListener('click', () => b64CopyText(item.b64, cp2, '✓'));
+    btnRow.appendChild(cp2);
+
+    card.appendChild(cardHeader);
+    card.appendChild(box);
+    card.appendChild(btnRow);
+    b64RightBody.appendChild(card);
+  });
+}
+
+function b64CopyText(text, btn, label) {
+  navigator.clipboard.writeText(text).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = label;
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 1500);
+  });
+}
+
+// Copy all data URLs
+b64CopyAllBtn.addEventListener('click', () => {
+  const all = b64Items
+    .filter(i => i.status === 'done' && i.b64)
+    .map(i => `data:${i.mime};base64,${i.b64}`)
+    .join('\n\n');
+  b64CopyText(all, b64CopyAllBtn, '✓ Copied All!');
+});
+
+// Clear all b64 items
+b64ClearAllBtn.addEventListener('click', () => {
+  b64Items = [];
+  b64RenderList();
+  b64RenderRightPanel();
+  b64UpdateUI();
+});
+
+// B64 resizer
+const b64ResizerEl = document.getElementById('b64Resizer');
+const b64LeftPanel = b64ResizerEl.previousElementSibling;
+const b64RightPanel = b64ResizerEl.nextElementSibling;
+let b64Resizing = false, b64StartX, b64StartW;
+
+b64ResizerEl.addEventListener('mousedown', e => {
+  b64Resizing = true;
+  b64StartX = e.clientX;
+  b64StartW = b64LeftPanel.getBoundingClientRect().width;
+  b64ResizerEl.classList.add('dragging');
+  document.body.style.cursor = 'col-resize';
+  document.body.style.userSelect = 'none';
+});
+document.addEventListener('mousemove', e => {
+  if (!b64Resizing) return;
+  const dx = e.clientX - b64StartX;
+  const totalW = b64Workspace.getBoundingClientRect().width - 4;
+  let newLeft = Math.max(200, Math.min(totalW - 200, b64StartW + dx));
+  b64LeftPanel.style.flex = 'none';
+  b64LeftPanel.style.width = newLeft + 'px';
+  b64RightPanel.style.flex = '1';
+});
+document.addEventListener('mouseup', () => {
+  if (!b64Resizing) return;
+  b64Resizing = false;
+  b64ResizerEl.classList.remove('dragging');
+  document.body.style.cursor = '';
+  document.body.style.userSelect = '';
+});
+
+// ─────────────────────────────────────────
+// RESIZER (JSON→ARL panels)
+// ─────────────────────────────────────────
+const resizer = document.getElementById('resizer');
+const panelLeft = document.getElementById('panelLeft');
+const panelRight = document.getElementById('panelRight');
+
+let isResizing = false;
+let startX, startLeftW;
+
+resizer.addEventListener('mousedown', e => {
+  isResizing = true;
+  startX = e.clientX;
+  startLeftW = panelLeft.getBoundingClientRect().width;
+  resizer.classList.add('dragging');
+  document.body.style.cursor = 'col-resize';
+  document.body.style.userSelect = 'none';
+});
+
+document.addEventListener('mousemove', e => {
+  if (!isResizing) return;
+  const dx = e.clientX - startX;
+  const totalW = workspace.getBoundingClientRect().width - 4;
+  let newLeft = startLeftW + dx;
+  newLeft = Math.max(200, Math.min(totalW - 200, newLeft));
+  panelLeft.style.flex = 'none';
+  panelLeft.style.width = newLeft + 'px';
+  panelRight.style.flex = '1';
+});
+
+document.addEventListener('mouseup', () => {
+  if (!isResizing) return;
+  isResizing = false;
+  resizer.classList.remove('dragging');
+  document.body.style.cursor = '';
+  document.body.style.userSelect = '';
+});
+</script>
+</body>
+</html>

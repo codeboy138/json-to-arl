@@ -1,0 +1,31 @@
+현재 앱의 기능 목록입니다.
+⚙ JSON → ARL 모드
+
+JSON 파일 업로드 (파일 선택 / 폴더 선택 / 드래그앤드롭)
+JSON 붙여넣기 (Paste JSON 패널)
+ARL 변환 (Cloudflare Worker 연동)
+변환 결과 트리 뷰
+ZIP 다운로드 / 폴더 저장
+선택 다운로드 (체크박스 선택 후 ZIP / Flat ZIP / 폴더)
+JSON 내 이미지 URL 미리보기
+JSON 내 URL → 이미지 검색으로 교체 (🔄 Replace)
+URL 교체 시 해상도 설정 (Original / HD / FHD)
+Auto-expand 토글 / Collapse All
+
+🖼 Image → Base64 모드
+
+이미지 URL 입력 추가
+이미지 파일 드래그앤드롭
+Base64 변환 (Convert All)
+해상도 설정 (Original / HD / FHD) 후 변환
+Data URL / Base64 복사
+이미지 다운로드 (파일명 지정 모달)
+전체 복사 (Copy All)
+
+🔍 Photo Search (공통)
+
+빠른 검색어 입력창 (항상 노출)
+Unsplash / Pexels / Pixabay 소스 선택
+검색 결과 그리드 모달
+Load More (페이지네이션)
+검색 결과 클릭 → Base64 목록에 추가
