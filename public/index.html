@@ -1344,6 +1344,242 @@
   .fname-btn-ok:hover { background: #0066bb; }
   .fname-btn-cancel { background: var(--surface2); color: var(--text2); border: 1px solid var(--border) !important; }
   .fname-btn-cancel:hover { background: var(--border); }
+
+  /* ── RESOLUTION SELECTOR ── */
+  .res-selector {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 3px 4px 3px 8px;
+    flex-shrink: 0;
+  }
+  .res-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--text3);
+    white-space: nowrap;
+  }
+  .res-radio { display: none; }
+  .res-btn {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 3px 9px;
+    border-radius: 3px;
+    cursor: pointer;
+    color: var(--text2);
+    transition: all 0.12s;
+    user-select: none;
+    white-space: nowrap;
+  }
+  .res-btn:hover { background: var(--border); }
+  .res-radio:checked + .res-btn { background: var(--accent); color: #f5f6f7; }
+
+  /* ── URL REPLACE BUTTON in url-item ── */
+  .url-replace-btn {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 3px 10px;
+    border-radius: 4px;
+    border: 1px solid var(--accent);
+    background: transparent;
+    color: var(--accent);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .url-replace-btn:hover { background: var(--accent); color: #f5f6f7; }
+  .url-replace-btn.replacing { border-color: var(--processing); color: var(--processing); }
+  .url-replace-btn.replaced { border-color: var(--done); color: var(--done); background: #ddf5e0; }
+
+  /* ── URL REPLACE MODAL ── */
+  .replace-modal-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(10,15,20,0.72);
+    z-index: 3000;
+    align-items: center;
+    justify-content: center;
+  }
+  .replace-modal-backdrop.open { display: flex; }
+  .replace-modal {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    width: min(900px, 96vw);
+    max-height: 88vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.28);
+    overflow: hidden;
+  }
+  .replace-modal-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+  .replace-modal-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text);
+    flex: 1;
+  }
+  .replace-modal-close {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875rem;
+    padding: 4px 10px;
+    border-radius: 4px;
+    border: 1px solid var(--border2);
+    background: transparent;
+    color: var(--text2);
+    cursor: pointer;
+  }
+  .replace-modal-close:hover { background: var(--error); color: #fff; border-color: var(--error); }
+  .replace-modal-search-bar {
+    display: flex;
+    gap: 8px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+    flex-shrink: 0;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .replace-modal-kw {
+    flex: 1;
+    min-width: 160px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875rem;
+    padding: 7px 12px;
+    border: 1px solid var(--border2);
+    border-radius: 5px;
+    background: var(--surface);
+    color: var(--text);
+    outline: none;
+  }
+  .replace-modal-kw:focus { border-color: var(--accent); }
+  .replace-modal-kw::placeholder { color: var(--text3); }
+  .replace-modal-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 14px;
+    min-height: 0;
+  }
+  .replace-results-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 8px;
+  }
+  .replace-result-item {
+    position: relative;
+    border-radius: 6px;
+    overflow: hidden;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: border-color 0.15s;
+    aspect-ratio: 1;
+    background: var(--surface2);
+  }
+  .replace-result-item:hover { border-color: var(--accent); }
+  .replace-result-item.selected { border-color: var(--done); }
+  .replace-result-img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .replace-result-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,119,204,0.5);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+  }
+  .replace-result-item:hover .replace-result-overlay { display: flex; }
+  .replace-result-item.selected .replace-result-overlay { display: flex; background: rgba(26,122,42,0.55); }
+  .replace-modal-footer {
+    padding: 10px 14px;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  .replace-selected-preview {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+  }
+  .replace-preview-thumb {
+    width: 40px; height: 40px;
+    object-fit: cover;
+    border-radius: 4px;
+    border: 1px solid var(--border2);
+    flex-shrink: 0;
+    display: none;
+  }
+  .replace-preview-url {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--text2);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+  }
+  .replace-status-bar {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.8rem;
+    color: var(--text3);
+    min-height: 18px;
+  }
+  .replace-status-bar.ok  { color: var(--done); }
+  .replace-status-bar.err { color: var(--error); }
+  .btn-replace-apply {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875rem;
+    font-weight: 600;
+    padding: 7px 16px;
+    border-radius: 5px;
+    border: none;
+    background: var(--done);
+    color: #f5f6f7;
+    cursor: pointer;
+    transition: background 0.15s;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .btn-replace-apply:hover { background: #1a6a28; }
+  .btn-replace-apply:disabled { background: var(--border); color: var(--text3); cursor: not-allowed; }
+  .replace-load-more {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.8rem;
+    padding: 6px 14px;
+    border-radius: 4px;
+    border: 1px solid var(--border2);
+    background: transparent;
+    color: var(--text2);
+    cursor: pointer;
+    transition: all 0.15s;
+    display: none;
+    margin-top: 8px;
+  }
+  .replace-load-more:hover { background: var(--accent); color: #f5f6f7; border-color: var(--accent); }
 </style>
 </head>
 <body>
@@ -1388,6 +1624,16 @@
     <div class="panel-header">
       <div class="panel-title">Before</div>
       <div class="panel-badge badge-before">JSON</div>
+      <!-- Resolution for JSON→ARL URL auto-replace -->
+      <div class="res-selector" id="arlResSelector" title="Image URL resolution for JSON→ARL auto-convert">
+        <span class="res-label">Resolution:</span>
+        <input type="radio" class="res-radio" name="arlRes" id="arlResOrig" value="orig" checked>
+        <label class="res-btn" for="arlResOrig">Original</label>
+        <input type="radio" class="res-radio" name="arlRes" id="arlResHD" value="hd">
+        <label class="res-btn" for="arlResHD">HD</label>
+        <input type="radio" class="res-radio" name="arlRes" id="arlResFHD" value="fhd">
+        <label class="res-btn" for="arlResFHD">FHD</label>
+      </div>
       <label id="autoExpandLabel" style="display:none;align-items:center;gap:6px;margin-left:auto;cursor:pointer;user-select:none;font-family:'IBM Plex Mono',monospace;font-size:0.75rem;color:var(--text3)">
         <span>Auto-expand</span>
         <div class="toggle-switch" id="autoExpandToggle" onclick="toggleAutoExpand()">
@@ -1471,6 +1717,16 @@
     <div class="panel-header">
       <div class="panel-title">Input</div>
       <div class="panel-badge badge-before">Image URL</div>
+      <!-- Resolution selector -->
+      <div class="res-selector" id="b64ResSelector" title="Output resolution (canvas resize)">
+        <span class="res-label">Resolution:</span>
+        <input type="radio" class="res-radio" name="b64Res" id="resOrig" value="orig" checked>
+        <label class="res-btn" for="resOrig">Original</label>
+        <input type="radio" class="res-radio" name="b64Res" id="resHD" value="hd">
+        <label class="res-btn" for="resHD">HD</label>
+        <input type="radio" class="res-radio" name="b64Res" id="resFHD" value="fhd">
+        <label class="res-btn" for="resFHD">FHD</label>
+      </div>
       <button class="b64-convert-btn" id="b64ConvertBtn" style="margin-left:auto">⚡ Convert All</button>
       <button class="clear-btn" id="b64ClearAllBtn" style="display:none;margin-left:4px">✕ Clear All</button>
     </div>
@@ -1481,6 +1737,11 @@
         <span style="font-size:0.875rem">🔍</span>
         <span class="search-toggle-title">Photo Search</span>
         <span class="search-toggle-hint">Unsplash · Pexels · Pixabay</span>
+        <!-- Always-visible quick search input -->
+        <input class="search-keyword-input" id="searchKeywordQuick" type="text"
+          placeholder="Type keyword & press Enter..."
+          style="flex:1;max-width:220px;margin-left:10px;font-size:0.8rem;padding:4px 10px"
+          onclick="event.stopPropagation()">
         <span class="search-chevron" id="searchChevron">▼</span>
       </div>
       <div class="search-body" id="searchBody">
@@ -1591,6 +1852,38 @@
     <div class="fname-modal-actions">
       <button class="fname-btn-cancel" id="fnameCancelBtn">Cancel</button>
       <button class="fname-btn-ok" id="fnameOkBtn">⬇ Download</button>
+    </div>
+  </div>
+</div>
+
+<!-- URL REPLACE MODAL -->
+<div class="replace-modal-backdrop" id="replaceModalBackdrop">
+  <div class="replace-modal">
+    <div class="replace-modal-header">
+      <span style="font-size:1rem">🔄</span>
+      <div class="replace-modal-title">Replace URL — <span id="replaceTargetKey" style="color:var(--text3);font-size:0.8rem"></span></div>
+      <button class="replace-modal-close" id="replaceModalClose">✕</button>
+    </div>
+    <div class="replace-modal-search-bar">
+      <input class="replace-modal-kw" id="replaceSearchKw" type="text" placeholder="Type keyword & press Enter...">
+      <select class="search-per-page" id="replacePerPage">
+        <option value="9">9 images</option>
+        <option value="15" selected>15 images</option>
+        <option value="30">30 images</option>
+      </select>
+      <button class="btn-search" id="replaceSearchBtn" style="padding:6px 14px">🔍 Search</button>
+      <div class="replace-status-bar" id="replaceStatus"></div>
+    </div>
+    <div class="replace-modal-body">
+      <div class="replace-results-grid" id="replaceResultsGrid"></div>
+      <button class="replace-load-more" id="replaceLoadMore">＋ Load More</button>
+    </div>
+    <div class="replace-modal-footer">
+      <div class="replace-selected-preview">
+        <img class="replace-preview-thumb" id="replacePreviewThumb" alt="">
+        <div class="replace-preview-url" id="replacePreviewUrl">Click an image to select</div>
+      </div>
+      <button class="btn-replace-apply" id="replaceApplyBtn" disabled>✓ Apply This URL</button>
     </div>
   </div>
 </div>
@@ -2018,11 +2311,14 @@ async function loadUrlPreviews(id, container) {
     return;
   }
 
-  urls.forEach(({ key, url }) => {
+  urls.forEach(({ key, url }, urlIdx) => {
     const itemWrap = document.createElement('div');
     itemWrap.className = 'url-item';
+    itemWrap.dataset.fileId = id;
+    itemWrap.dataset.urlKey = key;
+    itemWrap.dataset.urlIdx = urlIdx;
 
-    // Top row: thumb + key + url text
+    // Top row: thumb + key + url text + replace button
     const topRow = document.createElement('div');
     topRow.style.cssText = 'display:flex;align-items:center;gap:8px;width:100%';
 
@@ -2040,9 +2336,20 @@ async function loadUrlPreviews(id, container) {
     urlText.textContent = url;
     urlText.title = url;
 
+    // 🔄 Replace URL button
+    const replBtn = document.createElement('button');
+    replBtn.className = 'url-replace-btn';
+    replBtn.textContent = '🔄 Replace';
+    replBtn.title = 'Replace this URL with an image search result';
+    replBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      openReplaceModal({ fileId: id, urlKey: key, urlIdx, urlText, thumb, previewImg: itemWrap.querySelector('.url-preview-img'), replBtn });
+    });
+
     topRow.appendChild(thumb);
     topRow.appendChild(keyTag);
     topRow.appendChild(urlText);
+    topRow.appendChild(replBtn);
     itemWrap.appendChild(topRow);
 
     // Full preview always visible below
@@ -2631,6 +2938,8 @@ document.getElementById('btnPasteClipboard').addEventListener('click', async () 
   }
 });
 
+let _doSearchGlobal = null; // expose photo search function to outer scope
+
 // ─────────────────────────────────────────
 // PHOTO SEARCH (Cloudflare Worker proxy)
 // ─────────────────────────────────────────
@@ -2675,15 +2984,16 @@ searchKeyword.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch
 searchLoadMore.addEventListener('click', () => doSearch(false));
 
 async function doSearch(fresh) {
+  _doSearchGlobal = doSearch; // register to outer scope
   const kw = searchKeyword.value.trim();
-  if (!kw) { setStatus('키워드를 입력하세요', 'err'); return; }
+  if (!kw) { setStatus('Please enter a keyword', 'err'); return; }
   const perPage = parseInt(searchPerPage.value);
 
   const sources = [];
   if (srcUnsplash.checked) sources.push('unsplash');
   if (srcPexels.checked)   sources.push('pexels');
   if (srcPixabay.checked)  sources.push('pixabay');
-  if (!sources.length)     { setStatus('⚠ 소스를 선택하세요', 'err'); return; }
+  if (!sources.length)     { setStatus('⚠ Select at least one source', 'err'); return; }
 
   if (fresh) {
     searchPage = { unsplash: 1, pexels: 1, pixabay: 1 };
@@ -2694,7 +3004,7 @@ async function doSearch(fresh) {
   searchModalKw.textContent = kw;
   btnSearch.disabled = true;
   searchLoadMore.style.display = 'none';
-  setStatus(`"${kw}" 검색 중...`);
+  setStatus(`Searching "${kw}"...`);
   searchResultsWrap.style.display = '';
 
   const promises = sources.map(src => fetchSource(src, kw, perPage));
@@ -2711,7 +3021,7 @@ async function doSearch(fresh) {
     }
   });
 
-  setStatus(total ? `✓ ${total}장 로드됨` : '결과 없음', total ? 'ok' : 'err');
+  setStatus(total ? `✓ ${total} images loaded` : 'No results', total ? 'ok' : 'err');
   searchLoadMore.style.display = total ? '' : 'none';
   btnSearch.disabled = false;
 }
@@ -2764,7 +3074,195 @@ function setStatus(msg, type) {
   searchStatusModal.className = 'search-status-bar' + (type ? ' ' + type : '');
 }
 
+// ── Quick search bar (always visible) ──
+const searchKeywordQuick = document.getElementById('searchKeywordQuick');
+searchKeywordQuick.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    const kw = searchKeywordQuick.value.trim();
+    if (!kw) return;
+    searchKeyword.value = kw;
+    searchModalBackdrop.classList.add('open');
+    if (_doSearchGlobal) _doSearchGlobal(true);
+  }
+});
+// sync quick input value when modal opens
+searchToggleBar.addEventListener('click', () => {
+  if (searchKeywordQuick.value.trim()) searchKeyword.value = searchKeywordQuick.value.trim();
+});
+
 })(); // end PHOTO SEARCH IIFE
+
+// ─────────────────────────────────────────
+// URL REPLACE MODAL (Replace JSON URLs with image search results)
+// ─────────────────────────────────────────
+(function() {
+
+const backdrop      = document.getElementById('replaceModalBackdrop');
+const closeBtn      = document.getElementById('replaceModalClose');
+const kwInput       = document.getElementById('replaceSearchKw');
+const searchBtn     = document.getElementById('replaceSearchBtn');
+const perPageSel    = document.getElementById('replacePerPage');
+const grid          = document.getElementById('replaceResultsGrid');
+const loadMoreBtn   = document.getElementById('replaceLoadMore');
+const statusEl      = document.getElementById('replaceStatus');
+const previewThumb  = document.getElementById('replacePreviewThumb');
+const previewUrl    = document.getElementById('replacePreviewUrl');
+const applyBtn      = document.getElementById('replaceApplyBtn');
+const targetKeyEl   = document.getElementById('replaceTargetKey');
+
+let _ctx = null;          // { fileId, urlKey, urlIdx, urlText, thumb, previewImg }
+let _selectedItem = null; // { full, thumb }
+let _page = { unsplash:1, pexels:1, pixabay:1 };
+const SEARCH_URL = 'https://json-to-arl.cwicwi2016.workers.dev/search';
+
+window.openReplaceModal = function(ctx) {
+  _ctx = ctx;
+  _selectedItem = null;
+  _page = { unsplash:1, pexels:1, pixabay:1 };
+  grid.innerHTML = '';
+  statusEl.textContent = '';
+  statusEl.className = 'replace-status-bar';
+  previewThumb.style.display = 'none';
+  previewUrl.textContent = 'Click an image to select';
+  applyBtn.disabled = true;
+  loadMoreBtn.style.display = 'none';
+  targetKeyEl.textContent = ctx.urlKey;
+  // Auto-suggest keyword from key name
+  const autoKw = ctx.urlKey.split('.').pop().replace(/[_-]/g,' ');
+  kwInput.value = autoKw;
+  backdrop.classList.add('open');
+  setTimeout(() => kwInput.focus(), 80);
+  if (autoKw) doReplaceSearch(true);
+};
+
+closeBtn.addEventListener('click', () => backdrop.classList.remove('open'));
+backdrop.addEventListener('click', e => { if (e.target === backdrop) backdrop.classList.remove('open'); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && backdrop.classList.contains('open')) backdrop.classList.remove('open');
+});
+
+searchBtn.addEventListener('click', () => doReplaceSearch(true));
+kwInput.addEventListener('keydown', e => { if (e.key === 'Enter') doReplaceSearch(true); });
+loadMoreBtn.addEventListener('click', () => doReplaceSearch(false));
+
+async function doReplaceSearch(fresh) {
+  const kw = kwInput.value.trim();
+  if (!kw) { setReplaceStatus('Please enter a keyword', 'err'); return; }
+  const perPage = parseInt(perPageSel.value);
+  const sources = ['unsplash','pexels','pixabay'];
+  if (fresh) { _page = { unsplash:1, pexels:1, pixabay:1 }; grid.innerHTML = ''; }
+  searchBtn.disabled = true;
+  loadMoreBtn.style.display = 'none';
+  setReplaceStatus(`Searching "${kw}"...`);
+  const settled = await Promise.allSettled(sources.map(src => fetchReplaceSource(src, kw, perPage)));
+  let total = 0;
+  settled.forEach((res, i) => {
+    if (res.status === 'fulfilled') { res.value.forEach(item => renderReplaceItem(item)); total += res.value.length; _page[sources[i]]++; }
+    else console.warn(sources[i], res.reason);
+  });
+  setReplaceStatus(total ? `✓ ${total} images loaded` : 'No results', total ? 'ok' : 'err');
+  loadMoreBtn.style.display = total ? '' : 'none';
+  searchBtn.disabled = false;
+}
+
+async function fetchReplaceSource(src, kw, perPage) {
+  const page = _page[src];
+  const res = await fetch(`${SEARCH_URL}?source=${src}&q=${encodeURIComponent(kw)}&per_page=${perPage}&page=${page}`);
+  if (!res.ok) throw new Error(`${src} HTTP ${res.status}`);
+  return await res.json();
+}
+
+function renderReplaceItem(item) {
+  const card = document.createElement('div');
+  card.className = 'replace-result-item';
+  card.title = `${item.alt || ''}\nby ${item.author || ''}`;
+  const img = document.createElement('img');
+  img.className = 'replace-result-img';
+  img.src = item.thumb;
+  img.loading = 'lazy';
+  const overlay = document.createElement('div');
+  overlay.className = 'replace-result-overlay';
+  overlay.textContent = '＋';
+  card.appendChild(img);
+  card.appendChild(overlay);
+  card.addEventListener('click', () => {
+    document.querySelectorAll('.replace-result-item.selected').forEach(el => {
+      el.classList.remove('selected');
+      el.querySelector('.replace-result-overlay').textContent = '＋';
+    });
+    card.classList.add('selected');
+    overlay.textContent = '✓';
+    _selectedItem = item;
+    previewThumb.src = item.thumb;
+    previewThumb.style.display = 'block';
+
+    // Apply resolution setting to final URL
+    const resVal = document.querySelector('input[name="arlRes"]:checked')?.value || 'orig';
+    let finalUrl = item.full;
+    if (resVal !== 'orig') {
+      const RES = { hd: { w:1280, h:720 }, fhd: { w:1920, h:1080 } };
+      const r = RES[resVal];
+      if (r) {
+        // Unsplash: w= parameter
+        if (item.src === 'unsplash') {
+          try { const u = new URL(item.full); u.searchParams.set('w', r.w); u.searchParams.set('h', r.h); u.searchParams.set('fit','crop'); finalUrl = u.toString(); } catch {}
+        }
+        // Pexels: append resize params
+        else if (item.src === 'pexels') {
+          try { const u = new URL(item.full); u.searchParams.set('w', r.w); u.searchParams.set('h', r.h); u.searchParams.set('auto','compress'); finalUrl = u.toString(); } catch {}
+        }
+        // Pixabay: no resize param, use as-is
+      }
+    }
+    _selectedItem._finalUrl = finalUrl;
+    previewUrl.textContent = finalUrl;
+    applyBtn.disabled = false;
+  });
+  grid.appendChild(card);
+}
+
+applyBtn.addEventListener('click', () => {
+  if (!_selectedItem || !_ctx) return;
+  const newUrl = _selectedItem._finalUrl || _selectedItem.full;
+  // 1. Update DOM (preview image, urlText)
+  if (_ctx.urlText) { _ctx.urlText.textContent = newUrl; _ctx.urlText.title = newUrl; }
+  if (_ctx.thumb)   { _ctx.thumb.src = newUrl; }
+  if (_ctx.previewImg) { _ctx.previewImg.src = newUrl; }
+  // 2. Patch JSON data in fileMap (in-memory)
+  const entry = fileMap.get(_ctx.fileId);
+  if (entry) {
+    entry.file.text().then(text => {
+      try {
+        const json = JSON.parse(text);
+        patchJsonUrl(json, _ctx.urlKey, newUrl);
+        const blob = new Blob([JSON.stringify(json, null, 2)], { type: 'application/json' });
+        const newFile = new File([blob], entry.file.name, { type: 'application/json' });
+        fileMap.set(_ctx.fileId, { ...entry, file: newFile, _urlPatched: true });
+        // Visual feedback on button
+        if (_ctx.replBtn) { _ctx.replBtn.textContent = '✓ Replaced'; _ctx.replBtn.classList.add('replaced'); }
+      } catch(e) { console.error('JSON patch failed', e); }
+    });
+  }
+  backdrop.classList.remove('open');
+});
+
+function patchJsonUrl(obj, keyPath, newUrl) {
+  // keyPath format: "key" or "parent.child" or "arr[0].key"
+  const parts = keyPath.replace(/\[(\d+)\]/g, '.$1').split('.');
+  let cur = obj;
+  for (let i = 0; i < parts.length - 1; i++) {
+    if (cur == null) return;
+    cur = cur[parts[i]];
+  }
+  if (cur != null) cur[parts[parts.length-1]] = newUrl;
+}
+
+function setReplaceStatus(msg, type) {
+  statusEl.textContent = msg;
+  statusEl.className = 'replace-status-bar' + (type ? ' '+type : '');
+}
+
+})(); // end URL REPLACE IIFE
 
 // ─────────────────────────────────────────
 // MODE SWITCHER
@@ -2925,11 +3423,36 @@ function b64FromBlob(blob) {
     reader.onload = () => {
       const dataUrl = reader.result;
       const mime = blob.type || 'image/png';
-      const b64 = dataUrl.split(',')[1];
-      // Get image dimensions
       const img = new Image();
-      img.onload = () => resolve({ b64, mime, w: img.naturalWidth, h: img.naturalHeight, size: blob.size });
-      img.onerror = () => resolve({ b64, mime, w: null, h: null, size: blob.size });
+      img.onload = () => {
+        const origW = img.naturalWidth, origH = img.naturalHeight;
+        // Read resolution setting
+        const resVal = document.querySelector('input[name="b64Res"]:checked')?.value || 'orig';
+        const RES_MAP = { hd: [1280, 720], fhd: [1920, 1080] };
+        let targetW = origW, targetH = origH;
+        if (resVal !== 'orig' && RES_MAP[resVal]) {
+          const [mw, mh] = RES_MAP[resVal];
+          const ratio = Math.min(mw / origW, mh / origH, 1); // shrink only, no upscaling
+          if (ratio < 1) { targetW = Math.round(origW * ratio); targetH = Math.round(origH * ratio); }
+        }
+        if (targetW === origW && targetH === origH) {
+          // no resize needed
+          const b64 = dataUrl.split(',')[1];
+          resolve({ b64, mime, w: origW, h: origH, size: blob.size });
+        } else {
+          const canvas = document.createElement('canvas');
+          canvas.width = targetW; canvas.height = targetH;
+          canvas.getContext('2d').drawImage(img, 0, 0, targetW, targetH);
+          const resizedDataUrl = canvas.toDataURL(mime, 0.92);
+          const b64 = resizedDataUrl.split(',')[1];
+          const approxSize = Math.round(b64.length * 0.75);
+          resolve({ b64, mime, w: targetW, h: targetH, size: approxSize });
+        }
+      };
+      img.onerror = () => {
+        const b64 = dataUrl.split(',')[1];
+        resolve({ b64, mime: blob.type || 'image/png', w: null, h: null, size: blob.size });
+      };
       img.src = dataUrl;
     };
     reader.onerror = () => reject(new Error('File read failed'));
