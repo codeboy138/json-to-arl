@@ -1120,8 +1120,24 @@
   .btn-search:hover { background: #0066bb; }
   .btn-search:disabled { background: var(--border); color: var(--text3); cursor: not-allowed; }
 
-  /* Per-page count */
-  .search-per-page {
+  /* ── Right panel tabs ── */
+  .right-tab {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.8rem;
+    font-weight: 500;
+    padding: 10px 14px;
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: var(--text3);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .right-tab:hover { color: var(--text2); }
+  .right-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+
     font-family: 'IBM Plex Mono', monospace;
     font-size: 0.75rem;
     padding: 5px 8px;
@@ -1777,8 +1793,8 @@
 
         <!-- Search input -->
         <div class="search-input-row">
-          <input class="search-keyword-input" id="searchKeyword" type="text" placeholder="e.g. mountain, city, food ...">
           <button class="btn-search" id="btnSearch">🔍 Search</button>
+          <input class="search-keyword-input" id="searchKeyword" type="text" placeholder="e.g. mountain, city, food ...">
         </div>
 
         <!-- Status -->
@@ -1808,42 +1824,50 @@
   <!-- RESIZER B64 -->
   <div class="resizer" id="b64Resizer"></div>
 
-  <!-- RIGHT: OUTPUT -->
+  <!-- RIGHT: OUTPUT + SEARCH RESULTS (tabbed) -->
   <div class="b64-panel" id="b64RightPanel">
-    <div class="panel-header">
-      <div class="panel-title">Output</div>
-      <div class="panel-badge badge-after">Base64</div>
-      <button class="btn-paste-clipboard" id="b64CopyAllBtn" style="margin-left:auto;display:none">📋 Copy All</button>
+    <div class="panel-header" style="gap:0;padding:0 12px 0 0">
+      <!-- Tabs -->
+      <button class="right-tab active" id="tabBase64" onclick="switchRightTab('base64')">Base64 Output</button>
+      <button class="right-tab" id="tabSearch" onclick="switchRightTab('search')">🔍 Search Results <span id="searchCountBadge" style="display:none;background:var(--accent);color:#fff;border-radius:8px;padding:1px 6px;font-size:0.75rem;margin-left:4px"></span></button>
+      <!-- Actions (context-sensitive) -->
+      <div style="margin-left:auto;display:flex;align-items:center;gap:6px">
+        <button class="btn-paste-clipboard" id="b64CopyAllBtn" style="display:none">📋 Copy All</button>
+        <!-- Image size slider (search tab) -->
+        <div id="imgSizeControl" style="display:none;align-items:center;gap:6px;font-family:'IBM Plex Mono',monospace;font-size:0.75rem;color:var(--text3)">
+          <span>Size:</span>
+          <input type="range" id="imgSizeSlider" min="80" max="300" value="140" step="10"
+            style="width:80px;accent-color:var(--accent);cursor:pointer"
+            oninput="updateImgSize(this.value)">
+          <span id="imgSizeLabel">140px</span>
+        </div>
+        <div id="searchResultActions" style="display:none;gap:6px;align-items:center">
+          <button class="search-load-more" id="searchLoadMore" style="display:none;padding:4px 12px;font-size:0.8rem">＋ More</button>
+        </div>
+      </div>
     </div>
+    <!-- Base64 tab body -->
     <div class="b64-body" id="b64RightBody">
       <div class="b64-empty" id="b64RightEmpty">
         <strong style="font-size:1.2rem">⏳</strong>
         Converted Base64 results<br>will appear here
       </div>
     </div>
-  </div>
-
-</div>
-
-<!-- SEARCH FULLSCREEN MODAL -->
-<div class="search-modal-backdrop" id="searchModalBackdrop">
-  <div class="search-modal">
-    <div class="search-modal-header">
-      <span style="font-size:1rem">🔍</span>
-      <span class="search-modal-title">Photo Search — <span id="searchModalKw" style="color:var(--accent)"></span></span>
-      <button class="search-modal-close" id="searchModalClose">✕ Close</button>
-    </div>
-    <div class="search-modal-controls" id="searchModalControls">
-      <!-- source toggles + per-page + search input re-rendered here by JS -->
-    </div>
-    <div class="search-modal-body">
-      <div class="search-status-bar" id="searchStatusModal"></div>
+    <!-- Search results tab body -->
+    <div class="b64-body" id="searchResultsPane" style="display:none;padding:10px">
+      <div class="search-status-bar" id="searchStatusPanel" style="margin-bottom:8px"></div>
       <div class="search-results-wrap" id="searchResultsWrap" style="display:none">
         <div class="search-results-grid" id="searchResultsGrid"></div>
-        <button class="search-load-more" id="searchLoadMore">＋ Load More</button>
+        <button class="search-load-more" id="searchLoadMore" style="display:none;margin:12px auto;display:block">＋ Load More</button>
+      </div>
+      <div class="b64-empty" id="searchPaneEmpty">
+        <strong style="font-size:1.4rem">🔍</strong>
+        Search results will appear here.<br>
+        <span style="font-size:0.8rem;color:var(--text3)">Use the Photo Search panel on the left.</span>
       </div>
     </div>
   </div>
+
 </div>
 
 <!-- FILENAME EDIT MODAL -->
@@ -2942,6 +2966,43 @@ document.getElementById('btnPasteClipboard').addEventListener('click', async () 
 
 let _doSearchGlobal = null; // expose photo search function to outer scope
 
+// ── Right panel tab switcher ──
+function switchRightTab(tab) {
+  const base64Body   = document.getElementById('b64RightBody');
+  const searchPane   = document.getElementById('searchResultsPane');
+  const tabB64       = document.getElementById('tabBase64');
+  const tabSrch      = document.getElementById('tabSearch');
+  const copyAllBtn   = document.getElementById('b64CopyAllBtn');
+  const imgSizeCtrl  = document.getElementById('imgSizeControl');
+  const srchActions  = document.getElementById('searchResultActions');
+  if (tab === 'base64') {
+    base64Body.style.display = '';
+    searchPane.style.display = 'none';
+    tabB64.classList.add('active');
+    tabSrch.classList.remove('active');
+    imgSizeCtrl.style.display = 'none';
+    srchActions.style.display = 'none';
+    // restore Copy All visibility based on content
+    const doneItems = (typeof b64Items !== 'undefined') ? b64Items.filter(i => i.status === 'done' && i.b64) : [];
+    copyAllBtn.style.display = doneItems.length ? 'inline-block' : 'none';
+  } else {
+    base64Body.style.display = 'none';
+    searchPane.style.display = '';
+    tabB64.classList.remove('active');
+    tabSrch.classList.add('active');
+    copyAllBtn.style.display = 'none';
+    imgSizeCtrl.style.display = 'flex';
+    srchActions.style.display = 'flex';
+  }
+}
+
+// ── Image size slider ──
+function updateImgSize(val) {
+  document.getElementById('imgSizeLabel').textContent = val + 'px';
+  document.getElementById('searchResultsGrid').style.gridTemplateColumns =
+    `repeat(auto-fill, minmax(${val}px, 1fr))`;
+}
+
 // ─────────────────────────────────────────
 // PHOTO SEARCH (Cloudflare Worker proxy)
 // ─────────────────────────────────────────
@@ -2958,30 +3019,20 @@ const searchResultsWrap  = document.getElementById('searchResultsWrap');
 const searchResultsGrid  = document.getElementById('searchResultsGrid');
 const searchLoadMore     = document.getElementById('searchLoadMore');
 const searchPerPage      = document.getElementById('searchPerPage');
-const searchModalBackdrop= document.getElementById('searchModalBackdrop');
-const searchModalClose   = document.getElementById('searchModalClose');
-const searchModalKw      = document.getElementById('searchModalKw');
-const searchStatusModal  = document.getElementById('searchStatusModal');
+const searchStatusPanel  = document.getElementById('searchStatusPanel');
+const searchPaneEmpty    = document.getElementById('searchPaneEmpty');
+const searchCountBadge   = document.getElementById('searchCountBadge');
 
 let searchPage = { unsplash: 1, pexels: 1, pixabay: 1 };
 let addedUrls = new Set();
-// expose doSearch after it's defined — done at bottom of IIFE
+let totalLoaded = 0;
 
-// ── Open / close modal ──
+// ── Toggle search body open/close (chevron only) ──
 searchToggleBar.addEventListener('click', () => {
-  searchModalBackdrop.classList.add('open');
-  // sync quick input → modal keyword input
-  const quickKw = document.getElementById('searchKeywordQuick');
-  if (quickKw && quickKw.value.trim()) searchKeyword.value = quickKw.value.trim();
-  setTimeout(() => searchKeyword.focus(), 80);
-});
-searchModalClose.addEventListener('click', () => searchModalBackdrop.classList.remove('open'));
-searchModalBackdrop.addEventListener('click', e => {
-  if (e.target === searchModalBackdrop) searchModalBackdrop.classList.remove('open');
-});
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && searchModalBackdrop.classList.contains('open'))
-    searchModalBackdrop.classList.remove('open');
+  const isOpen = searchBody.classList.toggle('open');
+  const chevron = document.getElementById('searchChevron');
+  if (chevron) chevron.classList.toggle('open', isOpen);
+  if (isOpen) setTimeout(() => searchKeyword.focus(), 80);
 });
 
 // ── Search ──
@@ -3004,11 +3055,15 @@ async function doSearch(fresh) {
     searchPage = { unsplash: 1, pexels: 1, pixabay: 1 };
     searchResultsGrid.innerHTML = '';
     addedUrls.clear();
+    totalLoaded = 0;
   }
 
-  searchModalKw.textContent = kw;
+  // Switch to search tab in right panel
+  switchRightTab('search');
+
   btnSearch.disabled = true;
   searchLoadMore.style.display = 'none';
+  searchPaneEmpty.style.display = 'none';
   setStatus(`Searching "${kw}"...`);
   searchResultsWrap.style.display = '';
 
@@ -3026,8 +3081,12 @@ async function doSearch(fresh) {
     }
   });
 
-  setStatus(total ? `✓ ${total} images loaded` : 'No results', total ? 'ok' : 'err');
-  searchLoadMore.style.display = total ? '' : 'none';
+  totalLoaded += total;
+  setStatus(totalLoaded ? `✓ ${totalLoaded} images loaded` : 'No results', totalLoaded ? 'ok' : 'err');
+  searchLoadMore.style.display = totalLoaded ? '' : 'none';
+  // Update badge
+  searchCountBadge.textContent = totalLoaded;
+  searchCountBadge.style.display = totalLoaded ? '' : 'none';
   btnSearch.disabled = false;
 }
 
@@ -3075,8 +3134,8 @@ function renderSearchResult(item) {
 }
 
 function setStatus(msg, type) {
-  searchStatusModal.textContent = msg;
-  searchStatusModal.className = 'search-status-bar' + (type ? ' ' + type : '');
+  searchStatusPanel.textContent = msg;
+  searchStatusPanel.className = 'search-status-bar' + (type ? ' ' + type : '');
 }
 
 // ── Quick search bar (always visible) ──
@@ -3086,7 +3145,13 @@ searchKeywordQuick.addEventListener('keydown', e => {
     const kw = searchKeywordQuick.value.trim();
     if (!kw) return;
     searchKeyword.value = kw;
-    searchModalBackdrop.classList.add('open');
+    // Open search body if closed
+    const body = document.getElementById('searchBody');
+    if (!body.classList.contains('open')) {
+      body.classList.add('open');
+      const chevron = document.getElementById('searchChevron');
+      if (chevron) chevron.classList.add('open');
+    }
     if (_doSearchGlobal) _doSearchGlobal(true);
   }
 });
@@ -3173,7 +3238,9 @@ async function doReplaceSearch(fresh) {
 
 async function fetchReplaceSource(src, kw, perPage) {
   const page = _page[src];
-  const res = await fetch(`${SEARCH_URL}?source=${src}&q=${encodeURIComponent(kw)}&per_page=${perPage}&page=${page}`);
+  const res = await fetch(
+    `${SEARCH_URL}?source=${src}&q=${encodeURIComponent(kw)}&per_page=${perPage}&page=${page}`
+  );
   if (!res.ok) throw new Error(`${src} HTTP ${res.status}`);
   return await res.json();
 }
@@ -3317,6 +3384,11 @@ function b64UpdateUI() {
 function b64AddUrl(url) {
   url = url.trim();
   if (!url) return;
+  // Validate: must look like a URL
+  if (!/^(https?:\/\/|blob:|data:image\/)/i.test(url)) {
+    b64FlashInput('invalid');
+    return;
+  }
   // Avoid duplicates
   if (b64Items.some(i => i.url === url)) {
     b64FlashInput('dup');
