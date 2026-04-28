@@ -1733,16 +1733,18 @@
 
     <!-- PHOTO SEARCH PANEL -->
     <div class="search-panel" id="searchPanel">
-      <div class="search-toggle-bar" id="searchToggleBar">
-        <span style="font-size:0.875rem">🔍</span>
-        <span class="search-toggle-title">Photo Search</span>
-        <span class="search-toggle-hint">Unsplash · Pexels · Pixabay</span>
-        <!-- Always-visible quick search input -->
+      <!-- search panel: toggle row + quick input side by side -->
+      <div style="display:flex;align-items:center;border-bottom:1px solid var(--border)">
+        <div class="search-toggle-bar" id="searchToggleBar" style="flex:0 0 auto;border-bottom:none">
+          <span style="font-size:0.875rem">🔍</span>
+          <span class="search-toggle-title">Photo Search</span>
+          <span class="search-toggle-hint">Unsplash · Pexels · Pixabay</span>
+          <span class="search-chevron" id="searchChevron">▼</span>
+        </div>
+        <!-- Always-visible quick search input (outside toggle click zone) -->
         <input class="search-keyword-input" id="searchKeywordQuick" type="text"
-          placeholder="Type keyword & press Enter..."
-          style="flex:1;max-width:220px;margin-left:10px;font-size:0.8rem;padding:4px 10px"
-          onclick="event.stopPropagation()">
-        <span class="search-chevron" id="searchChevron">▼</span>
+          placeholder="Quick search — type & press Enter..."
+          style="flex:1;margin:6px 10px 6px 0;font-size:0.8rem;padding:4px 10px;min-width:0">
       </div>
       <div class="search-body" id="searchBody">
 
@@ -2963,10 +2965,14 @@ const searchStatusModal  = document.getElementById('searchStatusModal');
 
 let searchPage = { unsplash: 1, pexels: 1, pixabay: 1 };
 let addedUrls = new Set();
+// expose doSearch after it's defined — done at bottom of IIFE
 
 // ── Open / close modal ──
 searchToggleBar.addEventListener('click', () => {
   searchModalBackdrop.classList.add('open');
+  // sync quick input → modal keyword input
+  const quickKw = document.getElementById('searchKeywordQuick');
+  if (quickKw && quickKw.value.trim()) searchKeyword.value = quickKw.value.trim();
   setTimeout(() => searchKeyword.focus(), 80);
 });
 searchModalClose.addEventListener('click', () => searchModalBackdrop.classList.remove('open'));
@@ -2984,7 +2990,6 @@ searchKeyword.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch
 searchLoadMore.addEventListener('click', () => doSearch(false));
 
 async function doSearch(fresh) {
-  _doSearchGlobal = doSearch; // register to outer scope
   const kw = searchKeyword.value.trim();
   if (!kw) { setStatus('Please enter a keyword', 'err'); return; }
   const perPage = parseInt(searchPerPage.value);
@@ -3085,10 +3090,11 @@ searchKeywordQuick.addEventListener('keydown', e => {
     if (_doSearchGlobal) _doSearchGlobal(true);
   }
 });
-// sync quick input value when modal opens
-searchToggleBar.addEventListener('click', () => {
-  if (searchKeywordQuick.value.trim()) searchKeyword.value = searchKeywordQuick.value.trim();
-});
+// sync quick input value when modal opens (via toggle bar click handler above)
+// note: duplicate listener removed — sync handled inside the main click handler
+
+// expose doSearch to outer scope for quick search bar
+_doSearchGlobal = doSearch;
 
 })(); // end PHOTO SEARCH IIFE
 
