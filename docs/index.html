@@ -716,6 +716,7 @@
     display: flex;
     gap: 8px;
     align-items: flex-start;
+    flex-wrap: wrap;
   }
 
   .b64-url-input {
@@ -3676,9 +3677,11 @@ b64ScreenshotBtn.addEventListener('click', async () => {
       const id = ++b64IdCounter;
       if (item.success && item.png) {
         const b64data = item.png.split(',')[1];
+        const dataUrl = item.png; // already data:image/png;base64,...
         b64Items.push({ id, url: item.url, status: 'done', b64: b64data, mime: 'image/png',
           w: 2560, h: 1600, size: Math.round(b64data.length * 0.75),
-          error: null, open: false, isFile: false, fileName: null, fileObj: null });
+          error: null, open: false, isFile: false, fileName: null, fileObj: null,
+          resolvedThumbUrl: dataUrl }); // 썸네일로 스크린샷 결과 자체 사용
       } else {
         b64Items.push({ id, url: item.url, status: 'error', b64: null, mime: null,
           w: null, h: null, size: null, error: item.error || 'Screenshot failed',
@@ -3754,16 +3757,20 @@ b64ConvertBtn.addEventListener('click', async () => {
   b64UpdateUI();
 });
 
-// 스톡 이미지 서비스 페이지 URL 감지 패턴
+// 스톡 이미지 서비스 페이지 URL 감지 패턴 (CDN 이미지 URL은 제외)
 const STOCK_PAGE_PATTERNS = [
-  { test: u => /pexels\.com\/photo\//i.test(u),    service: 'pexels'    },
-  { test: u => /unsplash\.com\/photos\//i.test(u), service: 'unsplash'  },
-  { test: u => /pixabay\.com\/(photos|images)\//i.test(u), service: 'pixabay' },
+  // pexels.com/photo/제목-12345/ 형태만 (images.pexels.com CDN은 제외)
+  { test: u => /^https?:\/\/(www\.)?pexels\.com\/photo\//i.test(u),    service: 'pexels'    },
+  // unsplash.com/photos/id 형태만 (images.unsplash.com CDN은 제외)
+  { test: u => /^https?:\/\/(www\.)?unsplash\.com\/photos\//i.test(u), service: 'unsplash'  },
+  // pixabay.com/photos/ 또는 /images/ 형태만 (cdn.pixabay.com CDN은 제외)
+  { test: u => /^https?:\/\/(www\.)?pixabay\.com\/(photos|images)\//i.test(u), service: 'pixabay' },
 ];
 
 // 스톡 이미지 서비스의 실제 이미지 CDN 도메인 (CORS 차단되어 프록시 필요)
+// ※ www.pexels.com 같은 페이지 도메인은 여기에 넣지 않음 → 잘못 proxy되는 것 방지
 const PROXY_REQUIRED_HOSTS = [
-  'images.pexels.com', 'pexels.com',
+  'images.pexels.com',
   'images.unsplash.com',
   'cdn.pixabay.com',
 ];
@@ -3781,11 +3788,23 @@ async function b64FromUrl(url, preResolvedUrl = null) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url, service: stockMatch.service }),
       });
-      if (!res.ok) throw new Error(`Resolve failed (${stockMatch.service}): ${res.status}`);
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(`${stockMatch.service} 이미지 URL 변환 실패: ${errData.error || res.status}`);
+      }
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       url = data.imageUrl;
       if (!url) throw new Error(`${stockMatch.service}: 이미지 URL을 찾을 수 없습니다`);
+      // resolve 성공 후 CDN URL이 아닌 경우 방어
+      const isCDN = PROXY_REQUIRED_HOSTS.some(h => url.includes(h));
+      if (!isCDN) {
+        // CDN URL이 아니면 직접 fetch 시도
+        const resp = await fetch(url, { mode: 'cors' });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const blob = await resp.blob();
+        return b64FromBlob(blob);
+      }
     }
   }
 
