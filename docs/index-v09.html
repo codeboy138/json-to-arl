@@ -751,72 +751,6 @@
   }
   .btn-b64-add:hover { background: #0066bb; }
 
-  .btn-b64-paste {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 0.875rem;
-    font-weight: 500;
-    padding: 8px 12px;
-    border-radius: 5px;
-    border: 1px solid var(--accent);
-    background: transparent;
-    color: var(--accent);
-    cursor: pointer;
-    transition: all 0.15s;
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-  .btn-b64-paste:hover { background: var(--accent); color: #f5f6f7; }
-
-  .btn-b64-file {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 0.875rem;
-    font-weight: 500;
-    padding: 8px 12px;
-    border-radius: 5px;
-    border: 1px solid var(--border2);
-    background: transparent;
-    color: var(--text2);
-    cursor: pointer;
-    transition: all 0.15s;
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-  .btn-b64-file:hover { background: var(--surface2); }
-
-  .btn-b64-screenshot {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 0.875rem;
-    font-weight: 500;
-    padding: 8px 12px;
-    border-radius: 5px;
-    border: 1px solid var(--processing);
-    background: transparent;
-    color: var(--processing);
-    cursor: pointer;
-    transition: all 0.15s;
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-  .btn-b64-screenshot:hover { background: var(--processing); color: #f5f6f7; }
-  .btn-b64-screenshot:disabled { opacity: 0.5; cursor: not-allowed; }
-
-  .btn-b64-pexels-url {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 0.875rem;
-    font-weight: 500;
-    padding: 8px 12px;
-    border-radius: 5px;
-    border: 1px solid var(--accent2);
-    background: transparent;
-    color: var(--accent2);
-    cursor: pointer;
-    transition: all 0.15s;
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-  .btn-b64-pexels-url:hover { background: var(--accent2); color: #f5f6f7; }
-  .btn-b64-pexels-url:disabled { opacity: 0.5; cursor: not-allowed; }
-
   .btn-b64-clear-all {
     font-family: 'IBM Plex Mono', monospace;
     font-size: 0.875rem;
@@ -1888,16 +1822,11 @@
 
     <div class="b64-body" id="b64Body">
       <div class="b64-input-row">
-        <input type="text" class="b64-url-input" id="b64UrlInput" placeholder="https://example.com/image.png  or  https://pexels.com/photo/...">
+        <input type="text" class="b64-url-input" id="b64UrlInput" placeholder="https://example.com/image.png  ← Paste image URL here">
         <button class="btn-b64-add" id="b64AddBtn">＋ Add</button>
-        <button class="btn-b64-paste" id="b64PasteBtn" title="클립보드에서 붙여넣기">📋 Paste</button>
-        <button class="btn-b64-file" id="b64FileBtn" title="파일 업로드">📁 File</button>
-        <input type="file" id="b64FileInput" accept="image/*" multiple style="display:none">
-        <button class="btn-b64-screenshot" id="b64ScreenshotBtn" title="URL → PNG 스크린샷">🖥 Screenshot</button>
-        <button class="btn-b64-pexels-url" id="b64PexelsUrlBtn" title="Pexels URL → 원본 이미지">🅿 Pexels</button>
       </div>
       <div class="b64-drop-zone" id="b64DropZone">
-        📎 Drag &amp; drop image files here · paste URLs above · or use Screenshot / Pexels buttons
+        📎 Drag &amp; drop image files here, or paste URLs above
       </div>
       <div class="b64-list" id="b64List">
         <div class="b64-empty" id="b64Empty">
@@ -2026,8 +1955,6 @@
 // ─────────────────────────────────────────
 const WORKER_URL = 'https://json-to-arl.cwicwi2016.workers.dev/convert';
 const SEARCH_WORKER_URL = 'https://json-to-arl.cwicwi2016.workers.dev/search';
-const SCREENSHOT_WORKER_URL = 'https://json-to-arl.cwicwi2016.workers.dev/screenshot';
-const PEXELS_URL_WORKER_URL = 'https://json-to-arl.cwicwi2016.workers.dev/pexels-url';
 
 // fileMap: Map<id, { file, path (array), relativePath (string) }>
 let fileMap = new Map();
@@ -3572,142 +3499,6 @@ b64AddBtn.addEventListener('click', () => {
   if (!v) return;
   b64AddUrl(v);
   b64UrlInput.value = '';
-});
-
-// ── 붙여넣기 버튼 ──
-const b64PasteBtn = document.getElementById('b64PasteBtn');
-b64PasteBtn.addEventListener('click', async () => {
-  try {
-    const text = await navigator.clipboard.readText();
-    if (!text.trim()) return;
-    const lines = text.split(/[
-,\s]+/).map(l => l.trim()).filter(l => l.startsWith('http'));
-    if (!lines.length) {
-      b64UrlInput.value = text.trim();
-      b64UrlInput.className = 'b64-url-input valid';
-      return;
-    }
-    lines.forEach(b64AddUrl);
-    const orig = b64PasteBtn.textContent;
-    b64PasteBtn.textContent = '✓ Pasted!';
-    setTimeout(() => { b64PasteBtn.textContent = orig; }, 1500);
-  } catch(e) {
-    alert('클립보드 접근 권한이 필요합니다. 브라우저 주소창 왼쪽 자물쇠 아이콘에서 허용해주세요.');
-  }
-});
-
-// ── 파일 업로드 버튼 ──
-const b64FileBtn = document.getElementById('b64FileBtn');
-const b64FileInput = document.getElementById('b64FileInput');
-b64FileBtn.addEventListener('click', () => b64FileInput.click());
-b64FileInput.addEventListener('change', () => {
-  const files = [...b64FileInput.files].filter(f => f.type.startsWith('image/'));
-  files.forEach(f => b64AddFileItem(f));
-  b64FileInput.value = '';
-});
-
-// ── Screenshot 버튼 (URL → PNG via Puppeteer Worker) ──
-const b64ScreenshotBtn = document.getElementById('b64ScreenshotBtn');
-b64ScreenshotBtn.addEventListener('click', async () => {
-  const v = b64UrlInput.value.trim();
-  const urls = v
-    ? [v]
-    : b64Items.filter(i => i.status === 'pending' && !i.isFile).map(i => i.url);
-
-  if (!urls.length) {
-    alert('스크린샷할 URL을 입력하거나 목록에 URL을 추가하세요.');
-    return;
-  }
-
-  b64ScreenshotBtn.disabled = true;
-  const orig = b64ScreenshotBtn.textContent;
-  b64ScreenshotBtn.textContent = '⏳ ...';
-
-  try {
-    const res = await fetch(SCREENSHOT_WORKER_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ urls }),
-    });
-    const results = await res.json();
-
-    results.forEach(item => {
-      if (item.success && item.png) {
-        const id = ++b64IdCounter;
-        const mime = 'image/png';
-        const b64data = item.png.split(',')[1];
-        const size = Math.round(b64data.length * 0.75);
-        b64Items.push({
-          id, url: item.url, status: 'done',
-          b64: b64data, mime, w: 2560, h: 1600,
-          size, error: null, open: false, isFile: false,
-          fileName: null, fileObj: null
-        });
-      } else {
-        b64Items.push({
-          id: ++b64IdCounter, url: item.url, status: 'error',
-          b64: null, mime: null, w: null, h: null,
-          size: null, error: item.error || 'Screenshot failed',
-          open: false, isFile: false
-        });
-      }
-    });
-
-    if (v) b64UrlInput.value = '';
-    b64RenderList();
-    b64RenderRightPanel();
-    b64UpdateUI();
-  } catch(e) {
-    alert('Screenshot 오류: ' + e.message);
-  } finally {
-    b64ScreenshotBtn.disabled = false;
-    b64ScreenshotBtn.textContent = orig;
-  }
-});
-
-// ── Pexels URL 버튼 (Pexels 페이지 URL → 원본 이미지) ──
-const b64PexelsUrlBtn = document.getElementById('b64PexelsUrlBtn');
-b64PexelsUrlBtn.addEventListener('click', async () => {
-  const v = b64UrlInput.value.trim();
-  const pendingPexels = b64Items
-    .filter(i => i.status === 'pending' && !i.isFile && i.url.includes('pexels.com'))
-    .map(i => i.url);
-
-  const urls = v ? [v] : pendingPexels;
-
-  if (!urls.length) {
-    alert('Pexels URL을 입력하거나 목록에 추가하세요.
-예: https://www.pexels.com/photo/title-3760511/');
-    return;
-  }
-
-  b64PexelsUrlBtn.disabled = true;
-  const orig = b64PexelsUrlBtn.textContent;
-  b64PexelsUrlBtn.textContent = '⏳ ...';
-
-  try {
-    const res = await fetch(PEXELS_URL_WORKER_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ urls }),
-    });
-    const results = await res.json();
-
-    for (const item of results) {
-      if (item.error) {
-        alert(`오류 (${item.url}): ${item.error}`);
-        continue;
-      }
-      // 원본 이미지 URL을 b64 변환 파이프라인에 추가
-      b64AddUrl(item.original || item.large);
-    }
-    if (v) b64UrlInput.value = '';
-  } catch(e) {
-    alert('Pexels URL 오류: ' + e.message);
-  } finally {
-    b64PexelsUrlBtn.disabled = false;
-    b64PexelsUrlBtn.textContent = orig;
-  }
 });
 
 b64UrlInput.addEventListener('keydown', e => {
