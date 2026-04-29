@@ -72,8 +72,9 @@ async function handleResolveImage(request, env, corsHeaders) {
     // ── Pexels ──
     if (service === "pexels") {
       if (!env.PEXELS_KEY) return jsonErr("PEXELS_KEY not set", 500, corsHeaders);
-      const match = url.match(/\/(\d+)\/?(?:\?.*)?$/);
-      if (!match) return jsonErr("Pexels: photo ID 추출 실패", 400, corsHeaders);
+      // URL: https://www.pexels.com/photo/title-12345/ 또는 .../12345
+      const match = url.match(/-(\d+)\/?$/);
+      if (!match) return jsonErr("Pexels: photo ID 추출 실패 (URL: " + url + ")", 400, corsHeaders);
       const r = await fetch(`https://api.pexels.com/v1/photos/${match[1]}`, {
         headers: { Authorization: env.PEXELS_KEY },
       });
@@ -85,9 +86,9 @@ async function handleResolveImage(request, env, corsHeaders) {
     // ── Unsplash ──
     else if (service === "unsplash") {
       if (!env.UNSPLASH_KEY) return jsonErr("UNSPLASH_KEY not set", 500, corsHeaders);
-      // URL 형식: https://unsplash.com/photos/<id>
-      const match = url.match(/\/photos\/([A-Za-z0-9_-]+)/);
-      if (!match) return jsonErr("Unsplash: photo ID 추출 실패", 400, corsHeaders);
+      // URL: https://unsplash.com/photos/abc123def  (슬래시로 끝나는 경우도 처리)
+      const match = url.replace(/\/$/, "").match(/\/photos\/([A-Za-z0-9_-]+)$/);
+      if (!match) return jsonErr("Unsplash: photo ID 추출 실패 (URL: " + url + ")", 400, corsHeaders);
       const r = await fetch(`https://api.unsplash.com/photos/${match[1]}?client_id=${env.UNSPLASH_KEY}`);
       if (!r.ok) return jsonErr(`Unsplash API ${r.status}`, 502, corsHeaders);
       const d = await r.json();
@@ -97,8 +98,9 @@ async function handleResolveImage(request, env, corsHeaders) {
     // ── Pixabay ──
     else if (service === "pixabay") {
       if (!env.PIXABAY_KEY) return jsonErr("PIXABAY_KEY not set", 500, corsHeaders);
-      // URL 형식: https://pixabay.com/photos/title-<id>/  또는  /images/title-<id>/
-      const match = url.match(/-(\d+)\/?(?:\?.*)?$/);
+      // URL: https://pixabay.com/photos/title-12345/
+      const match = url.match(/-(\d+)\/?$/);
+      if (!match) return jsonErr("Pixabay: photo ID 추출 실패 (URL: " + url + ")", 400, corsHeaders);
       if (!match) return jsonErr("Pixabay: photo ID 추출 실패", 400, corsHeaders);
       const r = await fetch(
         `https://pixabay.com/api/?key=${env.PIXABAY_KEY}&id=${match[1]}`
