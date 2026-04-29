@@ -3667,10 +3667,14 @@ b64PexelsUrlBtn.addEventListener('click', async () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ urls }),
     });
-    const results = await res.json();
+    const raw = await res.json();
+    // Worker가 배열 또는 객체로 응답할 수 있으므로 방어처리
+    const results = Array.isArray(raw) ? raw : (raw.error ? [] : [raw]);
+    if (raw.error) { alert('Worker 오류: ' + raw.error); return; }
     results.forEach(item => {
       if (item.error) { alert('오류 (' + item.url + '): ' + item.error); return; }
-      b64AddUrl(item.original || item.large);
+      const imageUrl = item.original || item.large || item.medium;
+      if (imageUrl) b64AddUrl(imageUrl);
     });
     if (v) b64UrlInput.value = '';
   } catch(e) { alert('Pexels URL 오류: ' + e.message); }
