@@ -27,6 +27,16 @@ export default {
       return handlePexelsByUrl(request, env, corsHeaders);
     }
 
+    // ── 이미지 프록시: CORS를 허용하지 않는 이미지 URL을 서버사이드에서 fetch → base64 반환 ──
+    if (path === "/proxy" && request.method === "POST") {
+      return handleProxy(request, env, corsHeaders);
+    }
+
+    // ── 스톡 이미지 페이지 URL → 실제 이미지 URL 변환 (Pexels/Unsplash/Pixabay 통합) ──
+    if (path === "/resolve-image" && request.method === "POST") {
+      return handleResolveImage(request, env, corsHeaders);
+    }
+
     if (request.method !== "POST") {
       return new Response("Method Not Allowed", { status: 405 });
     }
@@ -45,6 +55,117 @@ export default {
     }
   },
 };
+
+// ── 스톡 이미지 페이지 URL → 실제 이미지 URL 변환 ──
+// service: 'pexels' | 'unsplash' | 'pixabay'
+async function handleResolveImage(request, env, corsHeaders) {
+  let body;
+  try { body = await request.json(); }
+  catch { return jsonErr("Invalid JSON", 400, corsHeaders); }
+
+  const { url, service } = body;
+  if (!url) return jsonErr("url 필드가 필요합니다", 400, corsHeaders);
+
+  try {
+    let imageUrl;
+
+    // ── Pexels ──
+    if (service === "pexels") {
+      if (!env.PEXELS_KEY) return jsonErr("PEXELS_KEY not set", 500, corsHeaders);
+      const match = url.match(/\/(\d+)\/?(?:\?.*)?$/);
+      if (!match) return jsonErr("Pexels: photo ID 추출 실패", 400, corsHeaders);
+      const r = await fetch(`https://api.pexels.com/v1/photos/${match[1]}`, {
+        headers: { Authorization: env.PEXELS_KEY },
+      });
+      if (!r.ok) return jsonErr(`Pexels API ${r.status}`, 502, corsHeaders);
+      const d = await r.json();
+      imageUrl = d.src?.large || d.src?.original || d.src?.medium;
+    }
+
+    // ── Unsplash ──
+    else if (service === "unsplash") {
+      if (!env.UNSPLASH_KEY) return jsonErr("UNSPLASH_KEY not set", 500, corsHeaders);
+      // URL 형식: https://unsplash.com/photos/<id>
+      const match = url.match(/\/photos\/([A-Za-z0-9_-]+)/);
+      if (!match) return jsonErr("Unsplash: photo ID 추출 실패", 400, corsHeaders);
+      const r = await fetch(`https://api.unsplash.com/photos/${match[1]}?client_id=${env.UNSPLASH_KEY}`);
+      if (!r.ok) return jsonErr(`Unsplash API ${r.status}`, 502, corsHeaders);
+      const d = await r.json();
+      imageUrl = d.urls?.regular || d.urls?.full || d.urls?.raw;
+    }
+
+    // ── Pixabay ──
+    else if (service === "pixabay") {
+      if (!env.PIXABAY_KEY) return jsonErr("PIXABAY_KEY not set", 500, corsHeaders);
+      // URL 형식: https://pixabay.com/photos/title-<id>/  또는  /images/title-<id>/
+      const match = url.match(/-(\d+)\/?(?:\?.*)?$/);
+      if (!match) return jsonErr("Pixabay: photo ID 추출 실패", 400, corsHeaders);
+      const r = await fetch(
+        `https://pixabay.com/api/?key=${env.PIXABAY_KEY}&id=${match[1]}`
+      );
+      if (!r.ok) return jsonErr(`Pixabay API ${r.status}`, 502, corsHeaders);
+      const d = await r.json();
+      const hit = d.hits?.[0];
+      if (!hit) return jsonErr("Pixabay: 이미지를 찾을 수 없습니다", 404, corsHeaders);
+      imageUrl = hit.largeImageURL || hit.webformatURL;
+    }
+
+    else {
+      return jsonErr("알 수 없는 service: " + service, 400, corsHeaders);
+    }
+
+    if (!imageUrl) return jsonErr("이미지 URL을 찾을 수 없습니다", 404, corsHeaders);
+
+    return new Response(JSON.stringify({ imageUrl }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+
+  } catch (e) {
+    return jsonErr(e.message, 502, corsHeaders);
+  }
+}
+
+function jsonErr(msg, status, corsHeaders) {
+  return new Response(JSON.stringify({ error: msg }), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+// ── 이미지 프록시 핸들러 ──
+// 클라이언트가 직접 fetch할 수 없는 이미지(CORS 차단)를 Worker에서 대신 가져와 base64로 반환
+async function handleProxy(request, env, corsHeaders) {
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return new Response(JSON.stringify({ error: "Invalid JSON" }), {
+      status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const { url } = body;
+  if (!url || typeof url !== "string") {
+    return new Response(JSON.stringify({ error: "url 필드가 필요합니다" }), {
+      status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  try {
+    const dataUrl = await urlToBase64(url);
+    const mime = dataUrl.split(";")[0].replace("data:", "");
+    return new Response(JSON.stringify({ dataUrl, mime }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (e) {
+    return new Response(JSON.stringify({ error: e.message }), {
+      status: 502,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+}
 
 // ── 스크린샷 핸들러 ──
 async function handleScreenshot(request, env, corsHeaders) {
